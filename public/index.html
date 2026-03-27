@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deal Engine - Chandigarh Tricity Real Estate</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #1e293b, #334155); padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; }
+    .header h1 { font-size: 24px; color: #3b82f6; }
+    .header .status { display: flex; gap: 15px; align-items: center; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .status-dot.green { background: #22c55e; }
+    .status-dot.red { background: #ef4444; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .stat-card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+    .stat-card .label { font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-card .value { font-size: 36px; font-weight: 700; margin-top: 5px; }
+    .stat-card .value.blue { color: #3b82f6; }
+    .stat-card .value.green { color: #22c55e; }
+    .stat-card .value.yellow { color: #eab308; }
+    .stat-card .value.red { color: #ef4444; }
+    .stat-card .sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .section { margin-bottom: 30px; }
+    .section h2 { font-size: 18px; margin-bottom: 15px; color: #f1f5f9; display: flex; align-items: center; gap: 10px; }
+    .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
+    .tab { padding: 8px 16px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; cursor: pointer; color: #94a3b8; font-size: 14px; }
+    .tab.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+    table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden; }
+    th { background: #334155; padding: 12px 16px; text-align: left; font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 12px 16px; border-bottom: 1px solid #334155; font-size: 14px; }
+    tr:hover { background: #334155; }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge.trusted { background: #166534; color: #86efac; }
+    .badge.new { background: #1e3a5f; color: #93c5fd; }
+    .badge.low { background: #713f12; color: #fde047; }
+    .badge.flagged { background: #7f1d1d; color: #fca5a5; }
+    .badge.medium { background: #365314; color: #bef264; }
+    .match-score { font-weight: 700; font-size: 16px; }
+    .match-score.high { color: #22c55e; }
+    .match-score.med { color: #eab308; }
+    .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .btn.connect { background: #22c55e; color: white; }
+    .btn.skip { background: #64748b; color: white; }
+    .btn.flag { background: #ef4444; color: white; }
+    .refresh-btn { background: #1e293b; border: 1px solid #3b82f6; color: #3b82f6; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .empty { text-align: center; padding: 40px; color: #64748b; }
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .header h1 { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏠 Deal Engine — Chandigarh Tricity</h1>
+    <div class="status">
+      <span id="wa-status"><span class="status-dot red"></span> WhatsApp</span>
+      <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="label">Active Listings</div><div class="value blue" id="s-listings">—</div><div class="sub" id="s-listings-today">today: —</div></div>
+      <div class="stat-card"><div class="label">Active Demands</div><div class="value green" id="s-demands">—</div><div class="sub" id="s-demands-today">today: —</div></div>
+      <div class="stat-card"><div class="label">Active Matches</div><div class="value yellow" id="s-matches">—</div><div class="sub" id="s-matches-today">today: —</div></div>
+      <div class="stat-card"><div class="label">Deals Closed</div><div class="value green" id="s-closed">—</div></div>
+      <div class="stat-card"><div class="label">Total Contacts</div><div class="value blue" id="s-contacts">—</div></div>
+      <div class="stat-card"><div class="label">Trusted / Flagged</div><div class="value" id="s-trust">—</div></div>
+      <div class="stat-card"><div class="label">WhatsApp Groups</div><div class="value blue" id="s-groups">—</div></div>
+    </div>
+
+    <!-- Matches -->
+    <div class="section">
+      <h2>🤝 Recent Matches</h2>
+      <table>
+        <thead><tr><th>Score</th><th>Listing</th><th>Seller</th><th>Buyer</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="matches-body"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Listings -->
+    <div class="section">
+      <h2>🏠 Active Listings (Sell)</h2>
+      <table>
+        <thead><tr><th>Type</th><th>Area</th><th>Size</th><th>Price</th><th>Seller</th><th>Trust</th><th>Date</th></tr></thead>
+        <tbody id="listings-body"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Demands -->
+    <div class="section">
+      <h2>🔍 Active Demands (Buy)</h2>
+      <table>
+        <thead><tr><th>Type</th><th>Area</th><th>Budget</th><th>BHK</th><th>Buyer</th><th>Trust</th><th>Date</th></tr></thead>
+        <tbody id="demands-body"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Contacts -->
+    <div class="section">
+      <h2>👥 Contacts (CRM)</h2>
+      <div class="tabs">
+        <div class="tab active" onclick="loadContacts()">All</div>
+        <div class="tab" onclick="loadContacts('TRUSTED')">Trusted</div>
+        <div class="tab" onclick="loadContacts('FLAGGED')">Flagged</div>
+        <div class="tab" onclick="loadContacts(null,'BROKER')">Brokers</div>
+      </div>
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Type</th><th>Trust</th><th>Posts</th><th>Deals</th><th>Last Seen</th><th>Actions</th></tr></thead>
+        <tbody id="contacts-body"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api';
+
+    async function fetchAPI(endpoint) {
+      const res = await fetch(API + endpoint);
+      return res.json();
+    }
+
+    async function postAPI(endpoint, body) {
+      const res = await fetch(API + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      return res.json();
+    }
+
+    async function patchAPI(endpoint, body) {
+      const res = await fetch(API + endpoint, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      return res.json();
+    }
+
+    function trustBadge(level) {
+      return `<span class="badge ${(level||'new').toLowerCase()}">${level||'NEW'}</span>`;
+    }
+
+    function formatDate(d) {
+      return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    }
+
+    async function loadStats() {
+      const s = await fetchAPI('/stats');
+      document.getElementById('s-listings').textContent = s.active?.listings ?? 0;
+      document.getElementById('s-demands').textContent = s.active?.demands ?? 0;
+      document.getElementById('s-matches').textContent = s.active?.matches ?? 0;
+      document.getElementById('s-closed').textContent = s.closedDeals ?? 0;
+      document.getElementById('s-contacts').textContent = s.total?.contacts ?? 0;
+      document.getElementById('s-trust').innerHTML = `<span style="color:#22c55e">${s.trust?.trusted ?? 0}</span> / <span style="color:#ef4444">${s.trust?.flagged ?? 0}</span>`;
+      document.getElementById('s-groups').textContent = s.groups ?? 0;
+      document.getElementById('s-listings-today').textContent = `today: ${s.today?.listings ?? 0}`;
+      document.getElementById('s-demands-today').textContent = `today: ${s.today?.demands ?? 0}`;
+      document.getElementById('s-matches-today').textContent = `today: ${s.today?.matches ?? 0}`;
+    }
+
+    async function loadMatches() {
+      const data = await fetchAPI('/matches?limit=20');
+      const tbody = document.getElementById('matches-body');
+      if (!data.matches?.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No matches yet</td></tr>'; return; }
+      tbody.innerHTML = data.matches.map(m => `<tr>
+        <td><span class="match-score ${m.score >= 80 ? 'high' : 'med'}">${m.score}%</span></td>
+        <td>${m.listing?.propertyType || '—'} in ${m.listing?.area || '—'}<br><small>₹${m.listing?.price || '?'} ${m.listing?.priceUnit || ''}</small></td>
+        <td>${m.seller?.name || m.seller?.phone || '—'}<br>${trustBadge(m.seller?.trustLevel)}</td>
+        <td>${m.buyer?.name || m.buyer?.phone || '—'}<br>${trustBadge(m.buyer?.trustLevel)}</td>
+        <td>${m.status}</td>
+        <td>${m.status === 'NEW' ? `<button class="btn connect" onclick="connectMatch('${m.id}')">Connect</button> <button class="btn skip" onclick="skipMatch('${m.id}')">Skip</button>` : '—'}</td>
+      </tr>`).join('');
+    }
+
+    async function loadListings() {
+      const data = await fetchAPI('/listings?limit=20');
+      const tbody = document.getElementById('listings-body');
+      if (!data.listings?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No listings yet</td></tr>'; return; }
+      tbody.innerHTML = data.listings.map(l => `<tr>
+        <td>${l.propertyType}</td>
+        <td>${l.area || '—'}</td>
+        <td>${l.size ? l.size + ' ' + (l.sizeUnit||'') : '—'}</td>
+        <td>₹${l.price || '?'} ${l.priceUnit}</td>
+        <td>${l.contact?.name || l.contact?.phone || '—'}</td>
+        <td>${trustBadge(l.contact?.trustLevel)}</td>
+        <td>${formatDate(l.createdAt)}</td>
+      </tr>`).join('');
+    }
+
+    async function loadDemands() {
+      const data = await fetchAPI('/demands?limit=20');
+      const tbody = document.getElementById('demands-body');
+      if (!data.demands?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No demands yet</td></tr>'; return; }
+      tbody.innerHTML = data.demands.map(d => `<tr>
+        <td>${d.propertyType || '—'}</td>
+        <td>${d.area || '—'}</td>
+        <td>₹${d.minBudget||'?'}-${d.maxBudget||'?'} ${d.budgetUnit}</td>
+        <td>${d.bedrooms || '—'}</td>
+        <td>${d.contact?.name || d.contact?.phone || '—'}</td>
+        <td>${trustBadge(d.contact?.trustLevel)}</td>
+        <td>${formatDate(d.createdAt)}</td>
+      </tr>`).join('');
+    }
+
+    async function loadContacts(trustLevel, type) {
+      let url = '/contacts?limit=30';
+      if (trustLevel) url += `&trustLevel=${trustLevel}`;
+      if (type) url += `&type=${type}`;
+      const data = await fetchAPI(url);
+      const tbody = document.getElementById('contacts-body');
+      if (!data.contacts?.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No contacts</td></tr>'; return; }
+      tbody.innerHTML = data.contacts.map(c => `<tr>
+        <td>${c.name || '—'}</td>
+        <td>${c.phone}</td>
+        <td>${c.type}</td>
+        <td>${trustBadge(c.trustLevel)} (${c.trustScore})</td>
+        <td>${c.totalPosts}</td>
+        <td>${c.dealsClosed}</td>
+        <td>${formatDate(c.lastSeen)}</td>
+        <td>
+          ${c.trustLevel !== 'FLAGGED' ? `<button class="btn flag" onclick="flagContact('${c.id}')">Flag</button>` : ''}
+          ${c.trustLevel !== 'TRUSTED' ? `<button class="btn connect" onclick="trustContact('${c.id}')">Trust</button>` : ''}
+        </td>
+      </tr>`).join('');
+    }
+
+    async function connectMatch(id) { await postAPI(`/matches/${id}/connect`, {}); loadAll(); }
+    async function skipMatch(id) { await patchAPI(`/matches/${id}`, { status: 'REJECTED' }); loadAll(); }
+    async function flagContact(id) { await postAPI(`/contacts/${id}/flag`, { reason: 'Flagged from dashboard' }); loadAll(); }
+    async function trustContact(id) { await postAPI(`/contacts/${id}/trust`, { reason: 'Trusted from dashboard' }); loadAll(); }
+
+    function loadAll() {
+      loadStats();
+      loadMatches();
+      loadListings();
+      loadDemands();
+      loadContacts();
+    }
+
+    loadAll();
+    setInterval(loadAll, 60000); // Auto-refresh every minute
+  </script>
+</body>
+</html>

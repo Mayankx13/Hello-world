@@ -1,0 +1,288 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// CONTACTS & TRUST
+// ==========================================
+
+model Contact {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  name        String?
+  type        ContactType @default(UNKNOWN)
+  trustScore  Int      @default(50) // 0-100
+  trustLevel  TrustLevel @default(NEW)
+  totalPosts  Int      @default(0)
+  dealsClosed Int      @default(0)
+  isBroker    Boolean  @default(false)
+  isVerified  Boolean  @default(false)
+  city        String?
+  notes       String?
+  firstSeen   DateTime @default(now())
+  lastSeen    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  listings    Listing[]
+  demands     Demand[]
+  matches     Match[]    @relation("MatchBuyer")
+  sellerMatches Match[] @relation("MatchSeller")
+  messages    Message[]
+  trustEvents TrustEvent[]
+}
+
+enum ContactType {
+  BUYER
+  SELLER
+  BROKER
+  BOTH
+  UNKNOWN
+}
+
+enum TrustLevel {
+  NEW
+  LOW
+  MEDIUM
+  TRUSTED
+  FLAGGED
+}
+
+// ==========================================
+// MESSAGES FROM WHATSAPP
+// ==========================================
+
+model Message {
+  id          String   @id @default(cuid())
+  whatsappId  String?  @unique
+  groupName   String?
+  groupId     String?
+  contactId   String?
+  contact     Contact? @relation(fields: [contactId], references: [id])
+  senderPhone String
+  senderName  String?
+  content     String
+  mediaUrl    String?
+  parsed      Boolean  @default(false)
+  parsedData  Json?
+  dealType    DealType?
+  createdAt   DateTime @default(now())
+}
+
+enum DealType {
+  SELL
+  BUY
+  BOTH
+}
+
+// ==========================================
+// LISTINGS (SELL SIDE)
+// ==========================================
+
+model Listing {
+  id            String   @id @default(cuid())
+  contactId     String
+  contact       Contact  @relation(fields: [contactId], references: [id])
+  messageId     String?
+  propertyType  PropertyType
+  transactionType TransactionType @default(SELL)
+  area          String?       // locality/sector
+  city          String        @default("chandigarh-tricity")
+  size          Float?        // in sq ft or sq yards
+  sizeUnit      SizeUnit?
+  bedrooms      Int?
+  bathrooms     Int?
+  floor         Int?
+  totalFloors   Int?
+  price         Float?
+  priceUnit     PriceUnit @default(LAKH)
+  facing        String?
+  amenities     String[]
+  description   String?
+  rawMessage    String
+  status        ListingStatus @default(ACTIVE)
+  isVerified    Boolean  @default(false)
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  matches       Match[]
+}
+
+enum PropertyType {
+  FLAT
+  APARTMENT
+  VILLA
+  HOUSE
+  PLOT
+  COMMERCIAL_SHOP
+  COMMERCIAL_OFFICE
+  COMMERCIAL_SHOWROOM
+  WAREHOUSE
+  SCO
+  SCF
+  BOOTH
+  KOTHI
+  FLOOR
+  PENTHOUSE
+  OTHER
+}
+
+enum TransactionType {
+  SELL
+  RESALE
+}
+
+enum SizeUnit {
+  SQFT
+  SQYD
+  MARLA
+  KANAL
+  ACRE
+  BIGHA
+}
+
+enum PriceUnit {
+  LAKH
+  CRORE
+  THOUSAND
+}
+
+enum ListingStatus {
+  ACTIVE
+  MATCHED
+  SOLD
+  EXPIRED
+  REMOVED
+}
+
+// ==========================================
+// DEMANDS (BUY SIDE)
+// ==========================================
+
+model Demand {
+  id            String   @id @default(cuid())
+  contactId     String
+  contact       Contact  @relation(fields: [contactId], references: [id])
+  messageId     String?
+  propertyType  PropertyType?
+  area          String?
+  city          String   @default("chandigarh-tricity")
+  minSize       Float?
+  maxSize       Float?
+  sizeUnit      SizeUnit?
+  bedrooms      Int?
+  minBudget     Float?
+  maxBudget     Float?
+  budgetUnit    PriceUnit @default(LAKH)
+  preferences   String[]
+  description   String?
+  rawMessage    String
+  status        DemandStatus @default(ACTIVE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  matches       Match[]
+}
+
+enum DemandStatus {
+  ACTIVE
+  MATCHED
+  FULFILLED
+  EXPIRED
+  REMOVED
+}
+
+// ==========================================
+// MATCHES
+// ==========================================
+
+model Match {
+  id          String   @id @default(cuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  demandId    String
+  demand      Demand   @relation(fields: [demandId], references: [id])
+  buyerId     String
+  buyer       Contact  @relation("MatchBuyer", fields: [buyerId], references: [id])
+  sellerId    String
+  seller      Contact  @relation("MatchSeller", fields: [sellerId], references: [id])
+  score       Float    // 0-100 match percentage
+  scoreBreakdown Json?
+  status      MatchStatus @default(NEW)
+  notifiedOwner   Boolean @default(false)
+  notifiedBuyer   Boolean @default(false)
+  notifiedSeller  Boolean @default(false)
+  commission      Float?
+  notes           String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([listingId, demandId])
+}
+
+enum MatchStatus {
+  NEW
+  NOTIFIED
+  CONTACTED
+  IN_PROGRESS
+  DEAL_CLOSED
+  DEAL_LOST
+  REJECTED
+}
+
+// ==========================================
+// TRUST EVENTS
+// ==========================================
+
+model TrustEvent {
+  id          String   @id @default(cuid())
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id])
+  event       TrustEventType
+  delta       Int      // +/- score change
+  reason      String?
+  createdAt   DateTime @default(now())
+}
+
+enum TrustEventType {
+  POST_FREQUENCY
+  DEAL_CLOSED
+  VERIFIED_BY_BROKER
+  DUPLICATE_POST
+  SPAM_DETECTED
+  PRICE_INCONSISTENCY
+  MANUAL_FLAG
+  MANUAL_TRUST
+}
+
+// ==========================================
+// GROUPS TRACKING
+// ==========================================
+
+model WhatsAppGroup {
+  id          String   @id @default(cuid())
+  groupId     String   @unique
+  name        String
+  description String?
+  memberCount Int?
+  isActive    Boolean  @default(true)
+  category    String?  // broker, buyer-seller, area-specific
+  joinedAt    DateTime @default(now())
+  lastMessage DateTime?
+}
+
+// ==========================================
+// SYSTEM CONFIG
+// ==========================================
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

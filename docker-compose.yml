@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://dealengine:dealengine123@db:5432/realestate_deals
+      OWNER_PHONE: "+917719784712"
+      MATCH_THRESHOLD: "70"
+      DASHBOARD_PORT: "3000"
+      LOG_LEVEL: "info"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./auth_info_baileys:/app/auth_info_baileys
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dealengine
+      POSTGRES_PASSWORD: dealengine123
+      POSTGRES_DB: realestate_deals
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dealengine"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
