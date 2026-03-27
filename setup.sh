@@ -21,9 +21,10 @@ docker stop $(docker ps -aq) 2>/dev/null || true
 docker rm $(docker ps -aq) 2>/dev/null || true
 docker network prune -f 2>/dev/null || true
 
-# Clear stale WhatsApp auth
-rm -rf /opt/deal-engine/auth_info_baileys
+# Clear stale WhatsApp auth (clear files, not the directory)
+echo "Clearing stale WhatsApp auth..."
 mkdir -p /opt/deal-engine/auth_info_baileys
+rm -f /opt/deal-engine/auth_info_baileys/* 2>/dev/null || true
 
 # Build and start
 echo "Building and starting containers..."
@@ -41,13 +42,17 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-# Verify containers are running
+# Stop the main app (we need port 3000 free and auth fresh)
+echo "Stopping app container for QR auth..."
+docker compose stop app
+
+# Verify DB is running
 echo ""
 echo "Container status:"
 docker compose ps
 echo ""
 
-# Now run the QR auth script separately
+# Now run the QR auth script (no --rm so auth files persist in volume)
 echo "========================================="
 echo "  Starting QR Code Server on port 3001"
 echo "========================================="
@@ -64,4 +69,4 @@ echo "  docker compose up -d"
 echo ""
 echo "========================================="
 
-docker compose run --rm -p 3001:3001 app node /app/src/whatsapp/qr-auth.js
+docker compose run -p 3001:3001 app node /app/src/whatsapp/qr-auth.js

@@ -6,14 +6,20 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLat
 const pino = require('pino');
 const http = require('http');
 const fs = require('fs');
+const path = require('path');
 
-// Clear any stale auth
+// Clear any stale auth files (don't delete the dir itself - it's a Docker volume mount)
 const AUTH_DIR = '/app/auth_info_baileys';
-if (fs.existsSync(AUTH_DIR)) {
-  fs.rmSync(AUTH_DIR, { recursive: true });
-}
 fs.mkdirSync(AUTH_DIR, { recursive: true });
-console.log('Cleared auth directory for fresh QR');
+try {
+  const files = fs.readdirSync(AUTH_DIR);
+  for (const file of files) {
+    fs.unlinkSync(path.join(AUTH_DIR, file));
+  }
+  console.log(`Cleared ${files.length} auth files for fresh QR`);
+} catch (e) {
+  console.log('Auth dir clean, starting fresh');
+}
 
 let latestQR = null;
 let connected = false;
