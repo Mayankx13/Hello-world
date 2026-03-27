@@ -11,6 +11,9 @@ const { processIncomingMessage } = require('../parser/message-processor');
 
 let sock = null;
 let isConnected = false;
+let latestQR = null;
+
+function getLatestQR() { return latestQR; }
 
 async function startBaileysReader() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -26,14 +29,8 @@ async function startBaileysReader() {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.log('\n\n========== WHATSAPP QR CODE ==========');
-      qrcode.generate(qr, { small: true }, (code) => {
-        console.log(code);
-      });
-      console.log('======================================');
-      console.log('QR DATA (paste at https://qr.io if not visible):');
-      console.log(qr);
-      console.log('======================================\n\n');
+      latestQR = qr;
+      logger.info('QR code ready! Open http://YOUR_SERVER:3000/qr to scan');
     }
 
     if (connection === 'close') {
@@ -154,4 +151,5 @@ module.exports = {
   getSocket,
   getConnectionStatus,
   getJoinedGroups,
+  getLatestQR,
 };
