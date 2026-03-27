@@ -50,41 +50,19 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Serve QR as a PNG image using inline SVG generation (no external deps)
-  const escaped = latestQR.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // Serve QR as an image — pure HTML, zero JavaScript needed
+  const qrEncoded = encodeURIComponent(latestQR);
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(`<html>
 <head>
 <meta http-equiv="refresh" content="20">
 <title>WhatsApp QR - Scan Now</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"><\/script>
 </head>
 <body style="background:#0f172a;color:white;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-family:sans-serif">
 <h1>Scan with WhatsApp</h1>
 <h3>Settings &gt; Linked Devices &gt; Link a Device</h3>
-<canvas id="qr" style="margin:20px"></canvas>
-<div id="fallback" style="display:none;background:white;padding:20px;margin:20px">
-  <img id="qr-img" />
-</div>
+<img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${qrEncoded}" width="400" height="400" style="margin:20px;background:white;padding:10px" />
 <p style="color:#94a3b8">Refreshes every 20s. Scan quickly!</p>
-<script>
-var qrData = ${JSON.stringify(latestQR)};
-if (typeof QRCode !== 'undefined') {
-  QRCode.toCanvas(document.getElementById('qr'), qrData, {width:400,margin:2}, function(e){
-    if(e) { showFallback(); }
-  });
-} else {
-  showFallback();
-}
-function showFallback() {
-  document.getElementById('fallback').style.display='block';
-  // Use Google Charts API as fallback QR generator
-  var img = document.getElementById('qr-img');
-  img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent(qrData);
-  img.width = 400;
-  img.height = 400;
-}
-<\/script>
 </body></html>`);
 });
 
