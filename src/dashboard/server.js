@@ -35,6 +35,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+// WhatsApp connection status API
+app.get('/api/wa-status', (req, res) => {
+  const { getConnectionStatus } = require('../whatsapp/baileys-reader');
+  res.json({ connected: getConnectionStatus() });
+});
+
 // WhatsApp QR code page — scan from your phone browser
 app.get('/qr', (req, res) => {
   const { getLatestQR, getConnectionStatus } = require('../whatsapp/baileys-reader');

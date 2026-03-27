@@ -236,8 +236,23 @@
       loadContacts();
     }
 
+    async function loadWAStatus() {
+      try {
+        const res = await fetch('/api/wa-status');
+        const data = await res.json();
+        const el = document.getElementById('wa-status');
+        if (data.connected) {
+          el.innerHTML = '<span class="status-dot green"></span> WhatsApp';
+        } else {
+          el.innerHTML = '<span class="status-dot red"></span> WhatsApp';
+        }
+      } catch(e) {}
+    }
+
     loadAll();
-    setInterval(loadAll, 60000); // Auto-refresh every minute
+    loadWAStatus();
+    setInterval(loadAll, 60000);
+    setInterval(loadWAStatus, 10000);
   </script>
 </body>
 </html>
