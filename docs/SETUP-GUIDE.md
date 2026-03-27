@@ -27,18 +27,17 @@ This system:
 
 | Service | Spec | Cost |
 |---------|------|------|
-| Droplet (VM) | 2 vCPU, 4GB RAM | ~₹4,000/mo |
-| Managed PostgreSQL | Basic plan | ~₹3,000/mo |
-| **Total** | | **~₹7,000/mo** |
+| Droplet (VM) | 2 vCPU, 2GB RAM, BLR1 | ~₹2,100/mo ($25) |
+| Swap space | 2GB (free, on disk) | ₹0 |
+| **Total** | | **~₹2,100/mo** |
 
-**Cheaper alternative:** Single droplet with Docker Compose (Postgres on same server)
-→ 2 vCPU, 4GB RAM Droplet = **₹4,000/mo total**
+Single droplet with Docker Compose (Postgres on same server) is all you need.
 
 ### Step 1: Create Droplet
 
 ```bash
 # 1. Log in to DigitalOcean → Create Droplet
-# 2. Choose: Ubuntu 22.04, Basic, 2 vCPU / 4GB RAM ($24/mo)
+# 2. Choose: Ubuntu 22.04, Basic, 2 vCPU / 2GB RAM ($25/mo)
 # 3. Choose region: Bangalore (BLR1) - closest to you
 # 4. Add SSH key or use password
 # 5. Create
@@ -49,6 +48,13 @@ This system:
 ```bash
 # SSH into your server
 ssh root@YOUR_SERVER_IP
+
+# Add 2GB swap (important for 2GB RAM droplet)
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 # Install Docker
 curl -fsSL https://get.docker.com | sh
