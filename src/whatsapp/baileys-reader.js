@@ -4,7 +4,7 @@
  * Uses a SECONDARY number to avoid ban risk on primary.
  */
 
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const logger = require('../utils/logger');
 const { processIncomingMessage } = require('../parser/message-processor');
@@ -16,12 +16,15 @@ let latestQR = null;
 function getLatestQR() { return latestQR; }
 
 async function startBaileysReader() {
+  const { version } = await fetchLatestBaileysVersion();
   const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
   sock = makeWASocket({
+    version,
     auth: state,
     printQRInTerminal: false,
     logger: require('pino')({ level: 'silent' }),
+    browser: ['Deal Engine', 'Chrome', '120.0'],
   });
 
   // Handle connection updates
