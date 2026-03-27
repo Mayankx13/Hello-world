@@ -26,8 +26,14 @@ async function startBaileysReader() {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      logger.info('Scan this QR code with your SECONDARY WhatsApp number:');
-      qrcode.generate(qr, { small: true });
+      console.log('\n\n========== WHATSAPP QR CODE ==========');
+      qrcode.generate(qr, { small: true }, (code) => {
+        console.log(code);
+      });
+      console.log('======================================');
+      console.log('QR DATA (paste at https://qr.io if not visible):');
+      console.log(qr);
+      console.log('======================================\n\n');
     }
 
     if (connection === 'close') {
