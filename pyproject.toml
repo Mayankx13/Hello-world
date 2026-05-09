@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "life-os"
+version = "0.1.0"
+description = "Mayank's Life OS — phased roadmap + interactive journal."
+requires-python = ">=3.11"
+authors = [{ name = "Mayank" }]
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.7",
+    "anthropic>=0.40",
+    "keyring>=25.0",
+    "python-frontmatter>=1.1",
+    "PyYAML>=6.0",
+    "python-dateutil>=2.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.12",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+life-os = "life_os.cli:app"
+journal = "life_os.cli:journal_app"
+status = "life_os.cli:status_command"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/life_os"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

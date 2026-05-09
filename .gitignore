@@ -1,0 +1,38 @@
+# Life OS — journal entries + logs sync via private GitHub repo (per setup choice).
+# The private bucket only ever commits encrypted *.age files; never plaintext .md.
+journal/private/*
+!journal/private/.gitkeep
+!journal/private/*.age
+
+# Decrypted staging dir is volatile.
+data/private/
+
+# SQLite indexes are regenerable from markdown.
+data/index.sqlite
+data/index.sqlite-*
+data/private.sqlite
+data/private.sqlite-*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Secrets / local config
+.env
+.env.local
+~/.life-os/
+
+# Editor noise
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
