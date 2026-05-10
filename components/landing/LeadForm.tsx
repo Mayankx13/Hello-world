@@ -7,6 +7,7 @@ import { CheckCircle2, Loader2, AlertCircle, MessageCircle, Phone } from 'lucide
 import { StateConfig, COLLEGE } from '@/config/states';
 import { leadSchema, LeadFormData } from '@/lib/schema';
 import { buildThankYouWhatsAppUrl, buildFallbackWhatsAppUrl } from '@/lib/whatsapp';
+import { submitToGoogleForm } from '@/lib/googleForm';
 import {
   trackLeadSubmit,
   trackFormStart,
@@ -90,13 +91,28 @@ export default function LeadForm({ config, variant = 'full', position = 'mid_pag
     };
 
     try {
-      const res = await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...enrichedData, formPosition: position }),
-      });
+      // Primary destination: Google Form. Fire in parallel with /api/leads
+      // (server console log for QA / analytics). Google Form is no-cors so
+      // we can't read its response — we treat it as success unless network errors.
+      const [googleFormResult] = await Promise.all([
+        submitToGoogleForm({ ...enrichedData, formPosition: position }),
+        fetch('/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...enrichedData, formPosition: position }),
+        }).catch((e) => {
+          // /api/leads failure is non-blocking — Google Form is the source of truth
+          console.warn('[/api/leads] non-blocking failure:', e);
+        }),
+      ]);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!googleFormResult.configured) {
+        console.warn(
+          '[Lead Form] Google Form not configured. Lead captured in /api/leads ' +
+          'console log only. Configure Google Form in lib/googleForm.ts to start ' +
+          'persisting leads.'
+        );
+      }
 
       setSubmittedData(enrichedData);
       setSubmitState('success');

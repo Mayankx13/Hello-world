@@ -39,8 +39,8 @@ export const COLLEGE = {
   name: 'Desh Bhagat Nursing College',
   shortName: 'DBNC',
   address: 'Mandi Gobindgarh Road, Fatehgarh Sahib, Punjab — 140406',
-  phone: '+91 98765 43210',
-  whatsapp: '919876543210', // SWAP: real WhatsApp number
+  phone: '+91 98222 00000',
+  whatsapp: '919822200000',
   email: 'admissions@dbnc.edu.in',
   website: 'https://dbnc.edu.in',
   mapUrl: 'https://maps.google.com/?q=Fatehgarh+Sahib+Punjab',
@@ -67,8 +67,8 @@ export const stateConfigs: Record<string, StateConfig> = {
     slug: 'himachal',
     displayName: 'Himachal Pradesh',
     regionalScript: 'हिमाचल प्रदेश',
-    heroImage: '/images/hero-himachal.jpg',
-    ogImage: '/images/og-himachal.jpg',
+    heroImage: 'https://picsum.photos/seed/dbnc-hero-himachal/1600/900',
+    ogImage: 'https://picsum.photos/seed/dbnc-og-himachal/1200/630',
     whatsappNumber: COLLEGE.whatsapp,
 
     districts: [
@@ -129,7 +129,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2022',
         quote:
           'Coming from Mandi, I was nervous about leaving home. But the hostel felt like family from day one. The wardens are like mothers, and my pahadi friends here made everything easy. I\'m now posted at AIIMS Bilaspur!',
-        photo: '/images/testimonials/priya-sharma.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-priya-sharma/400/400',
         currentEmployer: 'AIIMS Bilaspur',
       },
       {
@@ -140,7 +140,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2021',
         quote:
           'The bus from Dharamshala took just 4 hours. Weekend trips home were easy. The faculty is excellent and the hostel food — especially the rajma-chawal — felt like home cooking. Best decision of my life!',
-        photo: '/images/testimonials/sunita-thakur.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-sunita-thakur/400/400',
         currentEmployer: 'Fortis Hospital, Chandigarh',
         videoUrl: 'https://www.youtube.com/embed/PLACEHOLDER_HP', // SWAP with real testimonial video
       },
@@ -152,7 +152,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2023',
         quote:
           'Una is only 2 hours away, so I could go home every weekend. The NCLEX preparation classes helped me plan my international nursing career. I\'m already preparing for my UK nursing license now.',
-        photo: '/images/testimonials/meena-chauhan.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-meena-chauhan/400/400',
         currentEmployer: 'Civil Hospital, Una',
       },
     ],
@@ -216,8 +216,8 @@ export const stateConfigs: Record<string, StateConfig> = {
     slug: 'jammu',
     displayName: 'Jammu',
     regionalScript: 'जम्मू',
-    heroImage: '/images/hero-jammu.jpg',
-    ogImage: '/images/og-jammu.jpg',
+    heroImage: 'https://picsum.photos/seed/dbnc-hero-jammu/1600/900',
+    ogImage: 'https://picsum.photos/seed/dbnc-og-jammu/1200/630',
     whatsappNumber: COLLEGE.whatsapp,
 
     districts: [
@@ -278,7 +278,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2022',
         quote:
           'The J&K coordinator here helped me get the PMSSS scholarship, which covered 80% of my fees. The hostel is safer than I imagined — CCTV everywhere, kind wardens, and a strict entry policy. My parents were convinced on the first visit.',
-        photo: '/images/testimonials/reena-sharma.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-reena-sharma/400/400',
         currentEmployer: 'GMC Jammu',
       },
       {
@@ -289,7 +289,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2021',
         quote:
           'From Udhampur the bus to Chandigarh is comfortable, and from there campus is 45 minutes. I went home for every major festival. The Dogra food day in our mess was my favourite — they made authentic Rajma and Kaladi cheese!',
-        photo: '/images/testimonials/anjali-dogra.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-anjali-dogra/400/400',
         currentEmployer: 'Fortis Escorts, Amritsar',
         videoUrl: 'https://www.youtube.com/embed/PLACEHOLDER_JK', // SWAP with real video
       },
@@ -301,7 +301,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2023',
         quote:
           'Kathua to Punjab is just 2.5 hours. I was worried about safety as a first-time hostel girl, but the biometric gate and female warden gave my father complete peace of mind. Excellent faculty, great placement, and I cleared my NCLEX too!',
-        photo: '/images/testimonials/pooja-gupta.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-pooja-gupta/400/400',
         currentEmployer: 'Apollo Hospitals, Delhi',
       },
     ],
@@ -365,8 +365,8 @@ export const stateConfigs: Record<string, StateConfig> = {
     slug: 'haryana',
     displayName: 'Haryana',
     regionalScript: 'हरियाणा',
-    heroImage: '/images/hero-haryana.jpg',
-    ogImage: '/images/og-haryana.jpg',
+    heroImage: 'https://picsum.photos/seed/dbnc-hero-haryana/1600/900',
+    ogImage: 'https://picsum.photos/seed/dbnc-og-haryana/1200/630',
     whatsappNumber: COLLEGE.whatsapp,
 
     districts: [
@@ -430,7 +430,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2022',
         quote:
           'Ambala to campus is barely 1.5 hours — I was home every other weekend. The hostel is incredibly well-maintained, mess food is just like home, and the faculty here prepared me for PGIMS Rohtak exam which I cleared in first attempt!',
-        photo: '/images/testimonials/kavita-yadav.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-kavita-yadav/400/400',
         currentEmployer: 'PGIMS Rohtak',
       },
       {
@@ -441,7 +441,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2021',
         quote:
           'I chose this college over Rohtak because the infrastructure and hostel are far better, fees are similar, and placements are stronger. My parents could visit every fortnight. Now I\'m working at Medanta and planning my M.Sc Nursing.',
-        photo: '/images/testimonials/sonal-hooda.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-sonal-hooda/400/400',
         currentEmployer: 'Medanta Hospital, Gurugram',
         videoUrl: 'https://www.youtube.com/embed/PLACEHOLDER_HR', // SWAP with real video
       },
@@ -453,7 +453,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2023',
         quote:
           'Even from Hisar (3.5 hrs) the journey was easy on the NH. The Haryana student group here is big — Lohri and Holi were celebrated just like back home. 4 of my batchmates from Hisar are already placed in AIIMS Jhajjar.',
-        photo: '/images/testimonials/deepa-malik.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-deepa-malik/400/400',
         currentEmployer: 'Civil Hospital, Hisar',
       },
     ],
@@ -517,8 +517,8 @@ export const stateConfigs: Record<string, StateConfig> = {
     slug: 'delhi',
     displayName: 'Delhi',
     regionalScript: 'दिल्ली',
-    heroImage: '/images/hero-delhi.jpg',
-    ogImage: '/images/og-delhi.jpg',
+    heroImage: 'https://picsum.photos/seed/dbnc-hero-delhi/1600/900',
+    ogImage: 'https://picsum.photos/seed/dbnc-og-delhi/1200/630',
     whatsappNumber: COLLEGE.whatsapp,
 
     districts: [
@@ -580,7 +580,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2022',
         quote:
           'Delhi nursing colleges were charging ₹2.8 lakhs/year for the same course. Here, everything included is ₹1.67 lakhs. In 4 years, my parents saved over ₹4 lakhs. The clean campus air was a bonus — I stopped having asthma episodes!',
-        photo: '/images/testimonials/riya-sharma.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-riya-sharma/400/400',
         currentEmployer: 'AIIMS New Delhi',
       },
       {
@@ -591,7 +591,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2021',
         quote:
           'I took the Shatabdi from Delhi and was at campus in 3.5 hrs. Coming from East Delhi, the pollution was constant. Here in Punjab, I studied better, slept better, and graduated with 87% marks. Now I\'m at Fortis Escorts Heart Institute.',
-        photo: '/images/testimonials/neha-jain.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-neha-jain/400/400',
         currentEmployer: 'Fortis Escorts, Delhi',
         videoUrl: 'https://www.youtube.com/embed/PLACEHOLDER_DL', // SWAP with real video
       },
@@ -603,7 +603,7 @@ export const stateConfigs: Record<string, StateConfig> = {
         batch: '2023',
         quote:
           'The NCLEX coaching here was excellent. I am now registered for the US NCLEX exam and have a conditional offer from a Houston hospital. None of my classmates at Delhi colleges got this opportunity. Worth every rupee.',
-        photo: '/images/testimonials/priti-verma.jpg', // SWAP with real photo
+        photo: 'https://picsum.photos/seed/dbnc-priti-verma/400/400',
         currentEmployer: 'Preparing for NCLEX — USA pathway',
       },
     ],

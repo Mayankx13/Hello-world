@@ -93,46 +93,88 @@ Edit the `COLLEGE` object at the top of `config/states.ts`. One change reflects 
 
 ---
 
-## Plug Real Lead Webhook
+## Lead Capture — Google Form (primary)
 
-The API stub is in `app/api/leads/route.ts`. Uncomment and configure:
+Leads are sent **directly to a Google Form** from the browser. No CRM, no
+webhook server, no env vars. Free, instant, and connects to Google Sheets
+in one click.
 
-```ts
-await fetch(process.env.CRM_WEBHOOK_URL!, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${process.env.CRM_API_KEY}`,
-  },
-  body: JSON.stringify(leadPayload),
-});
-```
+### Setup (5 minutes)
 
-### Required env vars — create `.env.local`
-```env
-CRM_WEBHOOK_URL=https://your-crm.com/api/leads
-CRM_API_KEY=your_api_key_here
-WHATSAPP_API_URL=https://api.whatsapp.business/v1/messages
-WHATSAPP_API_TOKEN=your_wa_token_here
-COLLEGE_WHATSAPP_NUMBER=919876543210
-```
+1. Open [forms.google.com](https://forms.google.com) and create a new form
+   with these 17 questions (matching the names in `lib/googleForm.ts`):
 
-### WhatsApp Business API payload contract
-```ts
-// Defined in lib/analytics.ts -> WhatsAppLeadPayload
-{
-  to: "91XXXXXXXXXX",
-  templateName: "nursing_lead_confirmation_v1",
-  params: {
-    studentName: string,
-    state: string,
-    district: string,
-    mobileForCallback: string,
-    collegeWhatsapp: string,
-  },
-  metadata: { utmSource, utmMedium, utmCampaign, pageUrl, referrer, timestamp }
-}
-```
+   | Question | Type |
+   |---|---|
+   | Full Name | Short answer |
+   | Mobile Number | Short answer |
+   | WhatsApp Same | Multiple choice (Yes / No) |
+   | Email | Short answer |
+   | State | Short answer |
+   | District | Short answer |
+   | 12th Status | Multiple choice (appearing / passed / result_awaited) |
+   | 12th Percentage | Short answer |
+   | Hostel Required | Multiple choice (Yes / No) |
+   | Best Time To Call | Multiple choice (morning / afternoon / evening) |
+   | Form Position | Short answer |
+   | UTM Source | Short answer |
+   | UTM Medium | Short answer |
+   | UTM Campaign | Short answer |
+   | Page URL | Short answer |
+   | Referrer | Short answer |
+   | Timestamp | Short answer |
+
+   In each question's settings, **uncheck "Required"** for the optional ones
+   (email, percentage, best time to call, all UTM/tracking fields).
+
+2. Click **Send → Link tab → copy URL**. The `FORM_ID` is the long string
+   between `/d/e/` and `/viewform`. Paste it into `lib/googleForm.ts`:
+   ```ts
+   formId: 'PASTE_FORM_ID_HERE',
+   ```
+
+3. **Get each field's `entry.NNNNNNNNNN` ID** (the trick):
+   - Open the live form
+   - Right-click → **View Page Source**
+   - `Ctrl-F` for `entry.` — each question has a unique numeric ID
+   - Map each question to its entry ID in the `fields` object in
+     `lib/googleForm.ts`
+
+   *Alternative (easier):* Click the form's `⋮` menu → **Get pre-filled link**
+   → fill each field with junk text → click **Get link**. The URL contains
+   `entry.NNNNNNNNNN=junk` for every field.
+
+4. Set `enabled: true` in `lib/googleForm.ts`:
+   ```ts
+   export const GOOGLE_FORM = {
+     enabled: true,  // ← flip this
+     formId: 'your_real_form_id',
+     fields: { /* your real entry IDs */ },
+   };
+   ```
+
+5. **Connect Google Form to Google Sheets** (optional but recommended):
+   In the form, click **Responses → Link to Sheets**. Every submission
+   appears as a row. You now have a free CRM-style view.
+
+### Why Google Form
+- **Zero backend** — no env vars, no API keys, no server costs
+- **Email alerts** — turn on Form Settings → Email notifications for
+  instant counsellor alerts
+- **Sheets integration** — see all leads in a sortable spreadsheet
+- **No CORS issues** — the client posts directly with `mode: 'no-cors'`
+
+### What happens when `enabled: false` (default state)
+- The form *appears* to submit successfully (good UX during dev/demo)
+- Lead is logged to browser DevTools console + server `/api/leads` console
+- A console warning reminds you to configure the form
+- The thank-you screen + WhatsApp redirect still fires — **the user flow is
+  fully testable without setup**
+
+### Server log fallback (for QA)
+The `/api/leads` route still receives every submission in parallel and logs
+the full typed `LeadPayload` to the server console. This is purely for QA
+visibility — it's non-blocking and not the source of truth.
 
 ---
 

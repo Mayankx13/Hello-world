@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { StateConfig, COLLEGE } from '@/config/states';
 import { buildThankYouWhatsAppUrl, buildFallbackWhatsAppUrl } from '@/lib/whatsapp';
+import { submitToGoogleForm } from '@/lib/googleForm';
 import { trackLeadSubmit, trackFormStart } from '@/lib/analytics';
 
 interface Props {
@@ -77,25 +78,32 @@ export default function ExitIntent({ config }: Props) {
     setSubmitState('loading');
     setSubmittedName(data.name);
 
-    try {
-      const res = await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          state: config.slug,
-          formPosition: 'exit_popup',
-          district: 'Not specified',
-          class12Status: 'appearing',
-          hostelRequired: 'yes',
-          whatsappSame: true,
-          timestamp: new Date().toISOString(),
-          pageUrl: window.location.href,
-          referrer: document.referrer,
-        }),
-      });
+    const leadPayload = {
+      ...data,
+      state: config.slug,
+      formPosition: 'exit_popup' as const,
+      district: 'Not specified',
+      class12Status: 'appearing' as const,
+      class12Percentage: undefined,
+      hostelRequired: 'yes' as const,
+      bestTimeToCall: undefined,
+      whatsappSame: true,
+      email: '',
+      timestamp: new Date().toISOString(),
+      pageUrl: window.location.href,
+      referrer: document.referrer,
+    };
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    try {
+      // Submit to Google Form (primary) + /api/leads (server log) in parallel
+      await Promise.all([
+        submitToGoogleForm(leadPayload),
+        fetch('/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(leadPayload),
+        }).catch((e) => console.warn('[/api/leads] non-blocking failure:', e)),
+      ]);
 
       setSubmitState('success');
       trackLeadSubmit({ state: config.slug, name: data.name, mobile: data.mobile, formPosition: 'exit_popup' });

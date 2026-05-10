@@ -8,14 +8,14 @@ import {
 } from 'lucide-react';
 import { COLLEGE } from '@/config/states';
 
-// SWAP: replace these with real hostel photo paths (WebP, ~800px wide)
+// SWAP: replace Picsum URLs with real hostel photos (WebP, ~1200px wide)
 const HOSTEL_PHOTOS = [
-  { src: '/images/hostel/room.jpg', alt: 'Hostel rooms — clean, well-furnished double occupancy' },
-  { src: '/images/hostel/mess.jpg', alt: 'Mess hall — home-style North Indian meals' },
-  { src: '/images/hostel/common-area.jpg', alt: 'Common area — comfortable lounge with TV' },
-  { src: '/images/hostel/study-room.jpg', alt: 'Study room — quiet, well-lit, Wi-Fi enabled' },
-  { src: '/images/hostel/gate.jpg', alt: 'Hostel gate — biometric entry, 24/7 security' },
-  { src: '/images/hostel/medical.jpg', alt: 'Medical room — 24/7 nurse on duty' },
+  { src: 'https://picsum.photos/seed/dbnc-hostel-room/1200/750', alt: 'Hostel rooms — clean, well-furnished double occupancy' },
+  { src: 'https://picsum.photos/seed/dbnc-hostel-mess/1200/750', alt: 'Mess hall — home-style North Indian meals' },
+  { src: 'https://picsum.photos/seed/dbnc-hostel-common/1200/750', alt: 'Common area — comfortable lounge with TV' },
+  { src: 'https://picsum.photos/seed/dbnc-hostel-study/1200/750', alt: 'Study room — quiet, well-lit, Wi-Fi enabled' },
+  { src: 'https://picsum.photos/seed/dbnc-hostel-gate/1200/750', alt: 'Hostel gate — biometric entry, 24/7 security' },
+  { src: 'https://picsum.photos/seed/dbnc-hostel-medical/1200/750', alt: 'Medical room — 24/7 nurse on duty' },
 ];
 
 const FEATURES = [
