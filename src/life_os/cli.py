@@ -17,6 +17,7 @@ from rich.console import Console
 from rich.prompt import Prompt
 
 from . import config
+from . import digest as digest_mod
 from .dashboards import status as status_mod
 from .journal import ask as ask_mod
 from .journal import evening as evening_mod
@@ -213,6 +214,23 @@ def cmd_journal_reindex() -> None:
     counts = sqlite_mod.reindex_all(conn, paths)
     console.print(f"[green]reindex[/green]: {counts}")
     conn.close()
+
+
+@journal_app.command("digest")
+def cmd_journal_digest(
+    window: str = typer.Option("7d", "--window", help="7d | 30d | all | <N>d"),
+    no_llm: bool = typer.Option(False, "--no-llm", help="Skip Claude synthesis (stats + roadmap only)."),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Print only the file path."),
+) -> None:
+    """Generate a digest (saved to digests/, printed to stdout)."""
+    paths = config.load_paths()
+    console = Console()
+    out_path, text, data = digest_mod.generate(paths, window=window, use_llm=not no_llm)
+    if quiet:
+        console.print(str(out_path.relative_to(paths.home)))
+        return
+    console.print(f"[green]wrote[/green] {out_path.relative_to(paths.home)}\n")
+    console.print(text)
 
 
 # --- Bot sub-app -----------------------------------------------------------

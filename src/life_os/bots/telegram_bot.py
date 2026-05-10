@@ -27,6 +27,7 @@ from telegram.ext import (
 )
 
 from .. import config
+from .. import digest as digest_mod
 from ..journal import evening as evening_mod
 from ..journal import log as log_mod
 from ..journal import weekly as weekly_mod
@@ -43,6 +44,7 @@ HELP_TEXT = (
     "  /weekly <text>       — Sunday review\n"
     "  /log <domain> <text> — domain log (body, perfectghar, career, finance, social, growth)\n"
     "  /ask <question>      — ask Claude with your full corpus\n"
+    "  /digest [7d|30d]     — synthesized roll-up, saved to digests/\n"
     "  /status              — dashboard\n"
     "  /help                — this message"
 )
@@ -201,6 +203,49 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     lines = ["*Active phases:*"]
     by_domain: dict[str, str] = {}
     for row in active:
+        if row["domain"] in by_domain:
+            continue
+        by_domain[row["domain"]] = row["title"]
+    for domain, title in sorted(by_domain.items()):
+        lines.append(f"  • _{domain}_: {title}")
+    if overdue:
+        lines.append("")
+        lines.append("*Overdue:*")
+        for row in overdue[:5]:
+            lines.append(f"  • {row['domain']}: {row['title']} (due {row['due_date']})")
+    conn.close()
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+
+
+async def cmd_digest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    window = (context.args[0] if context.args else "7d").lower()
+    if window not in {"7d", "30d", "all"} and not (window.endswith("d") and window[:-1].isdigit()):
+        await update.message.reply_text("usage: /digest [7d|30d|all]")
+        return
+    paths = _paths_from_context(context)
+    await update.message.chat.send_action("typing")
+    try:
+        out_path, text, _ = digest_mod.generate(paths, window=window)
+    except Exception as exc:  # noqa: BLE001
+        await update.message.reply_text(f"digest failed: {exc}")
+        return
+    _try_sync(paths, out_path, f"telegram: digest {out_path.name}")
+    await update.message.reply_text(f"saved {out_path.relative_to(paths.home)}")
+    for i in range(0, len(text), 4000):
+        await update.message.reply_text(text[i : i + 4000])
+    paths = _paths_from_context(context)
+    conn = sqlite_mod.connect(paths.sqlite_path)
+    sqlite_mod.init_db(conn, paths.schema_sql)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) AS c FROM roadmap_items")
+    if cur.fetchone()["c"] == 0:
+        sqlite_mod.reindex_all(conn, paths)
+
+    active = sqlite_mod.fetch_active_phases(conn)
+    overdue = sqlite_mod.fetch_overdue_items(conn)
+    lines = ["*Active phases:*"]
+    by_domain: dict[str, str] = {}
+    for row in active:
         # Show the first active/planned per domain — keep it short.
         if row["domain"] in by_domain:
             continue
@@ -249,6 +294,22 @@ async def weekly_nudge(context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+async def sunday_digest_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Auto-generate Sunday digest 30 min before the weekly-review nudge."""
+    chat_id = context.job.data["chat_id"]
+    paths = context.application.bot_data.get("paths") or config.load_paths()
+    try:
+        out_path, text, _ = digest_mod.generate(paths, window="7d")
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Sunday digest failed: %s", exc)
+        await context.bot.send_message(chat_id=chat_id, text=f"digest failed: {exc}")
+        return
+    _try_sync(paths, out_path, f"telegram: sunday digest {out_path.name}")
+    await context.bot.send_message(chat_id=chat_id, text=f"📊 weekly digest — {out_path.relative_to(paths.home)}")
+    for i in range(0, len(text), 4000):
+        await context.bot.send_message(chat_id=chat_id, text=text[i : i + 4000])
+
+
 # --- Wiring ---------------------------------------------------------------
 
 def _paths_from_context(context: ContextTypes.DEFAULT_TYPE) -> config.Paths:
@@ -288,17 +349,28 @@ def build_application(token: str, allowed_chat_id: int | None) -> Application:
     app.add_handler(CommandHandler("weekly", cmd_weekly, filters=auth_filter))
     app.add_handler(CommandHandler("log", cmd_log, filters=auth_filter))
     app.add_handler(CommandHandler("ask", cmd_ask, filters=auth_filter))
+    app.add_handler(CommandHandler("digest", cmd_digest, filters=auth_filter))
     app.add_handler(CommandHandler("status", cmd_status, filters=auth_filter))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & auth_filter, free_text))
 
     if allowed_chat_id is not None and app.job_queue is not None:
         evening_t = _parse_hhmm(config.get_evening_nudge_time())
         weekly_t = _parse_hhmm(config.get_weekly_nudge_time())
+        # Sunday digest fires 30 minutes before the weekly-review nudge.
+        digest_minutes = max(0, weekly_t.hour * 60 + weekly_t.minute - 30)
+        digest_t = dt_time(hour=digest_minutes // 60, minute=digest_minutes % 60)
         app.job_queue.run_daily(
             evening_nudge,
             time=evening_t,
             data={"chat_id": int(allowed_chat_id)},
             name="evening_nudge",
+        )
+        app.job_queue.run_daily(
+            sunday_digest_job,
+            time=digest_t,
+            days=(config.DEFAULT_WEEKLY_NUDGE_DOW,),
+            data={"chat_id": int(allowed_chat_id)},
+            name="sunday_digest",
         )
         app.job_queue.run_daily(
             weekly_nudge,
