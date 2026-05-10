@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DBNC Landing Pages — Pick a State</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0A2540 0%, #061526 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      color: white;
+    }
+    .container { max-width: 720px; width: 100%; text-align: center; }
+    h1 { font-size: clamp(1.5rem, 5vw, 2.25rem); margin-bottom: 0.5rem; line-height: 1.2; }
+    .sub { color: rgba(255,255,255,0.6); font-size: 0.95rem; margin-bottom: 2.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 1.5rem 1.25rem;
+      text-decoration: none;
+      color: white;
+      transition: all 0.2s ease;
+      display: block;
+    }
+    .card:hover {
+      background: rgba(255, 107, 53, 0.15);
+      border-color: #FF6B35;
+      transform: translateY(-2px);
+    }
+    .flag { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .name { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem; }
+    .desc { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+    .footer {
+      margin-top: 3rem;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.3);
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(255,107,53,0.15);
+      color: #FF6B35;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="badge">Demo · 4 Landing Pages</span>
+    <h1>DBNC B.Sc Nursing — Choose a Page</h1>
+    <p class="sub">State-targeted lead-capture pages. Same components, different copy + USPs + testimonials + FAQs per state.</p>
+    <div class="grid">
+      <a class="card" href="./himachal/">
+        <div class="flag">🏔️</div>
+        <div class="name">Himachal Pradesh</div>
+        <div class="desc">Easy bus/train · pahadi community</div>
+      </a>
+      <a class="card" href="./jammu/">
+        <div class="flag">🏛️</div>
+        <div class="name">Jammu</div>
+        <div class="desc">J&amp;K cell · PMSSS scholarship</div>
+      </a>
+      <a class="card" href="./haryana/">
+        <div class="flag">🚗</div>
+        <div class="name">Haryana</div>
+        <div class="desc">Weekend home · 2–3 hr drive</div>
+      </a>
+      <a class="card" href="./delhi/">
+        <div class="flag">🌿</div>
+        <div class="name">Delhi</div>
+        <div class="desc">30–40% lower fees · clean air</div>
+      </a>
+    </div>
+    <p class="footer">Tip: Resize browser to ≤768px to see the mobile sticky bar &amp; mini hero form.</p>
+  </div>
+</body>
+</html>

@@ -6,6 +6,7 @@ node_modules/
 # Next.js build output
 .next/
 out/
+# NB: docs/ is the static export — KEEP it tracked so GitHub Pages can serve it
 
 # Production
 build/

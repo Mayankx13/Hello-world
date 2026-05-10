@@ -95,16 +95,7 @@ export default function ExitIntent({ config }: Props) {
     };
 
     try {
-      // Submit to Google Form (primary) + /api/leads (server log) in parallel
-      await Promise.all([
-        submitToGoogleForm(leadPayload),
-        fetch('/api/leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(leadPayload),
-        }).catch((e) => console.warn('[/api/leads] non-blocking failure:', e)),
-      ]);
-
+      await submitToGoogleForm(leadPayload);
       setSubmitState('success');
       trackLeadSubmit({ state: config.slug, name: data.name, mobile: data.mobile, formPosition: 'exit_popup' });
     } catch {

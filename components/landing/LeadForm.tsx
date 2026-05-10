@@ -91,26 +91,17 @@ export default function LeadForm({ config, variant = 'full', position = 'mid_pag
     };
 
     try {
-      // Primary destination: Google Form. Fire in parallel with /api/leads
-      // (server console log for QA / analytics). Google Form is no-cors so
-      // we can't read its response — we treat it as success unless network errors.
-      const [googleFormResult] = await Promise.all([
-        submitToGoogleForm({ ...enrichedData, formPosition: position }),
-        fetch('/api/leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...enrichedData, formPosition: position }),
-        }).catch((e) => {
-          // /api/leads failure is non-blocking — Google Form is the source of truth
-          console.warn('[/api/leads] non-blocking failure:', e);
-        }),
-      ]);
+      // Submit to Google Form (client-side, no-cors). No backend needed.
+      // Static export build = no API routes; Google Form captures leads directly.
+      const googleFormResult = await submitToGoogleForm({
+        ...enrichedData,
+        formPosition: position,
+      });
 
       if (!googleFormResult.configured) {
         console.warn(
-          '[Lead Form] Google Form not configured. Lead captured in /api/leads ' +
-          'console log only. Configure Google Form in lib/googleForm.ts to start ' +
-          'persisting leads.'
+          '[Lead Form] Google Form not configured yet. Configure GOOGLE_FORM in ' +
+          'lib/googleForm.ts to start persisting leads. UX flow continues normally.'
         );
       }
 
