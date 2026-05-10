@@ -24,6 +24,9 @@ dev = [
     "pytest-mock>=3.12",
     "ruff>=0.5",
 ]
+bot = [
+    "python-telegram-bot[job-queue]>=21.0",
+]
 
 [project.scripts]
 life-os = "life_os.cli:app"

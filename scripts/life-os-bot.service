@@ -1,0 +1,24 @@
+[Unit]
+Description=Life OS Telegram bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Edit these three for your VPS layout:
+User=mayank
+WorkingDirectory=/home/mayank/life-os
+Environment=PATH=/home/mayank/life-os/.venv/bin:/usr/bin
+# Set token + chat_id here OR let the bot read them from ~/.life-os/ on this user.
+# Environment=LIFE_OS_TELEGRAM_TOKEN=...
+# Environment=LIFE_OS_TELEGRAM_CHAT_ID=...
+# Environment=ANTHROPIC_API_KEY=...
+ExecStart=/home/mayank/life-os/.venv/bin/python -m life_os.bots.telegram_bot
+Restart=on-failure
+RestartSec=10
+
+# Keep journal entries committing back to GitHub. The user must have an SSH key
+# or a credential helper configured for `git push` to work non-interactively.
+
+[Install]
+WantedBy=multi-user.target

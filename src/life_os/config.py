@@ -10,6 +10,12 @@ DEFAULT_MODEL = "claude-opus-4-7"
 FAST_MODEL = "claude-haiku-4-5"
 KEYRING_SERVICE = "life-os"
 KEYRING_USER = "anthropic"
+KEYRING_TG_USER = "telegram-bot-token"
+
+# Telegram bot defaults — overrideable via env.
+DEFAULT_EVENING_NUDGE_HHMM = "20:00"
+DEFAULT_WEEKLY_NUDGE_HHMM = "20:30"
+DEFAULT_WEEKLY_NUDGE_DOW = 6  # Sunday in python-telegram-bot job_queue convention
 
 
 def _repo_root() -> Path:
@@ -86,3 +92,62 @@ def set_api_key(value: str) -> None:
 
 def get_age_bin() -> str:
     return os.environ.get("LIFE_OS_AGE_BIN", "age")
+
+
+def get_telegram_token() -> str | None:
+    """Return the Telegram bot token. Env var first; keyring fallback."""
+    env = os.environ.get("LIFE_OS_TELEGRAM_TOKEN")
+    if env:
+        return env
+    try:
+        import keyring
+
+        return keyring.get_password(KEYRING_SERVICE, KEYRING_TG_USER)
+    except Exception:
+        return None
+
+
+def set_telegram_token(value: str) -> None:
+    import keyring
+
+    keyring.set_password(KEYRING_SERVICE, KEYRING_TG_USER, value)
+
+
+def get_telegram_chat_id() -> int | None:
+    """Authorized chat_id for the bot. Env first; config file fallback."""
+    env = os.environ.get("LIFE_OS_TELEGRAM_CHAT_ID")
+    if env:
+        try:
+            return int(env)
+        except ValueError:
+            return None
+    cfg = _bot_config_path()
+    if cfg.exists():
+        try:
+            for line in cfg.read_text(encoding="utf-8").splitlines():
+                if line.startswith("chat_id="):
+                    return int(line.split("=", 1)[1].strip())
+        except (OSError, ValueError):
+            pass
+    return None
+
+
+def set_telegram_chat_id(chat_id: int) -> None:
+    cfg = _bot_config_path()
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(f"chat_id={chat_id}\n", encoding="utf-8")
+
+
+def get_evening_nudge_time() -> str:
+    return os.environ.get("LIFE_OS_EVENING_NUDGE", DEFAULT_EVENING_NUDGE_HHMM)
+
+
+def get_weekly_nudge_time() -> str:
+    return os.environ.get("LIFE_OS_WEEKLY_NUDGE", DEFAULT_WEEKLY_NUDGE_HHMM)
+
+
+def _bot_config_path() -> Path:
+    override = os.environ.get("LIFE_OS_BOT_CONFIG")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".life-os" / "bot.conf"

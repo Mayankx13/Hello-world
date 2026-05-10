@@ -73,6 +73,25 @@ def cmd_init_age(
     console.print(f"[green]wrote[/green] {paths.age_key_path} (chmod 600 on Unix)")
 
 
+@config_app.command("set-tg-token")
+def cmd_set_tg_token() -> None:
+    """Store the Telegram bot token in the OS keychain."""
+    console = Console()
+    token = Prompt.ask("Telegram bot token (from @BotFather)", password=True, console=console)
+    if not token.strip():
+        console.print("[yellow]empty input; not stored[/yellow]")
+        raise typer.Exit(code=1)
+    config.set_telegram_token(token.strip())
+    console.print("[green]stored in OS keychain[/green]")
+
+
+@config_app.command("set-tg-chat-id")
+def cmd_set_tg_chat_id(chat_id: int = typer.Argument(..., help="The chat_id /start told you in Telegram.")) -> None:
+    """Authorize a chat_id (the bot ignores all other chats)."""
+    config.set_telegram_chat_id(int(chat_id))
+    Console().print(f"[green]authorized chat_id {chat_id}[/green]")
+
+
 # --- Journal sub-app -------------------------------------------------------
 
 journal_app = typer.Typer(help="Life OS journal (evening / weekly / log / ask)", no_args_is_help=True)
@@ -196,10 +215,30 @@ def cmd_journal_reindex() -> None:
     conn.close()
 
 
+# --- Bot sub-app -----------------------------------------------------------
+
+bot_app = typer.Typer(help="Telegram bot for capture + nudges + ask-mode", no_args_is_help=True)
+
+
+@bot_app.command("run")
+def cmd_bot_run() -> None:
+    """Start the Telegram bot (foreground; use systemd for daemonization)."""
+    try:
+        from .bots import telegram_bot
+    except ImportError as exc:  # pragma: no cover
+        Console().print(f"[red]bot extras not installed: {exc}\n  pip install -e \".[bot]\"[/red]")
+        raise typer.Exit(code=2) from exc
+    raise typer.Exit(code=telegram_bot.main())
+
+
+journal_app.add_typer(bot_app, name="bot")
+
+
 # --- Top-level umbrella app ------------------------------------------------
 
 app = typer.Typer(help="Life OS — roadmap + journal", no_args_is_help=True)
 app.add_typer(journal_app, name="journal")
+app.add_typer(bot_app, name="bot")
 
 
 @app.command("status")
