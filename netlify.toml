@@ -1,0 +1,51 @@
+# Netlify deploy config — pure static site.
+# Drag-drop this folder into Netlify or connect via Git — no build step required.
+
+[build]
+  publish = "."
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/assets/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# Clean URLs: /himachal -> /himachal/ (folder index)
+[[redirects]]
+  from = "/himachal"
+  to = "/himachal/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/jammu"
+  to = "/jammu/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/haryana"
+  to = "/haryana/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/delhi"
+  to = "/delhi/"
+  status = 301
+  force = true

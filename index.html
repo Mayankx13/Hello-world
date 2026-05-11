@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nightingale College of Nursing — Choose Your State</title>
+  <meta name="description" content="INC approved B.Sc Nursing college in Punjab. Select your state to see admissions information for Himachal, J&K, Haryana, or Delhi.">
+  <meta name="theme-color" content="#0A2540">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <style>
+    .state-card {
+      display: block;
+      padding: 22px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow-soft);
+      transition: border-color .15s, box-shadow .15s, transform .05s;
+    }
+    .state-card:hover { border-color: var(--accent); box-shadow: var(--shadow-cta); }
+    .state-card .slug {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--accent);
+    }
+    .state-card .nm { margin-top: 4px; font-size: 22px; font-weight: 800; color: var(--brand); }
+    .state-card .desc { margin-top: 6px; color: var(--text-soft); font-size: 14px; }
+    .state-grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+    @media (min-width: 640px) { .state-grid { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body style="background: var(--cream); padding-bottom: 0;">
+  <main class="container" style="padding-top: 56px; padding-bottom: 56px;">
+    <div style="margin-bottom: 30px;">
+      <h1 style="font-size: 32px; font-weight: 800; color: var(--brand);">Nightingale College of Nursing</h1>
+      <p style="margin-top: 6px; color: var(--text-soft); max-width: 640px;">
+        Choose your state to see B.Sc Nursing admissions information tailored for your region.
+      </p>
+    </div>
+    <div class="state-grid">
+      <a class="state-card" href="himachal/">
+        <div class="slug">/himachal</div>
+        <div class="nm">Himachal Pradesh</div>
+        <div class="desc">Direct buses from Shimla, Mandi, Kangra & Una. Pleasant climate, pahadi community.</div>
+      </a>
+      <a class="state-card" href="jammu/">
+        <div class="slug">/jammu</div>
+        <div class="nm">Jammu</div>
+        <div class="desc">Dedicated J&amp;K student cell, PMSSS scholarship support, direct Jammu–Punjab buses.</div>
+      </a>
+      <a class="state-card" href="haryana/">
+        <div class="slug">/haryana</div>
+        <div class="nm">Haryana</div>
+        <div class="desc">2–3 hours from home. Weekend visits possible. Active Haryana student association.</div>
+      </a>
+      <a class="state-card" href="delhi/">
+        <div class="slug">/delhi</div>
+        <div class="nm">Delhi NCR</div>
+        <div class="desc">Escape NCR pollution. 30–40% lower fees. Same INC/NMC recognition.</div>
+      </a>
+    </div>
+  </main>
+</body>
+</html>
