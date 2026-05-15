@@ -56,7 +56,7 @@ Every advance fires a `partial` POST; entering the final screen fires a `submit`
 | `session_id` | `crypto.randomUUID()` minted on landing |
 | `started_at_iso`, `submitted_at_iso`, `updated_at_iso` | timestamps |
 | `is_complete`, `current_screen` | flow state |
-| `q1`–`q21`, `q4_other`, `q20_method`, `q20_value` | survey answers |
+| `q1`, `q3`, `q4` (multi-select JSON + `q4_other`), `q5`, `q_trust` (1–5), `q6` (1–7 gut slider), `q7`–`q18`, `q8b` (post-pricing worry), `q21`, `q19` (deposit), `q20_whatsapp`, `q20_email` | survey answers across 12 plates |
 | `total_session_ms` | `performance.now()` since landing |
 | `back_count` | times the Back button was clicked |
 | `screen_times_json` | per-screen dwell in ms |

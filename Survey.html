@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>A short study</title>
+<title>The Voice Study — A short survey</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -116,6 +116,7 @@
     font-style: italic;
     color: var(--ink-2);
   }
+  .step-count.is-hidden{ visibility: hidden; }
 
   /* ───────── Stage ───────── */
   main{
@@ -202,7 +203,6 @@
     text-wrap: pretty;
   }
 
-  /* Smaller stacked heading inside multi-question screens */
   .q-block{ margin: 0 0 28px; }
   .q-block + .q-block{ margin-top: 8px; padding-top: 26px; border-top: 1px solid var(--rule); }
   h2.qs{
@@ -256,8 +256,8 @@
   .landing h1{
     font-family: "Fraunces", serif;
     font-weight: 300;
-    font-size: clamp(40px, 11vw, 68px);
-    line-height: 0.98;
+    font-size: clamp(44px, 12.5vw, 76px);
+    line-height: 0.96;
     letter-spacing: -0.02em;
     margin: 0 0 24px;
     font-variation-settings: "opsz" 144, "SOFT" 50;
@@ -270,21 +270,21 @@
     color: var(--brass-ink);
   }
   .landing .promise{
-    font-size: 16.5px;
-    line-height: 1.55;
+    font-size: 17px;
+    line-height: 1.5;
     color: var(--ink-2);
-    max-width: 44ch;
-    margin: 0 0 32px;
+    max-width: 34ch;
+    margin: 0 0 36px;
     text-wrap: pretty;
   }
   .meta{
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     border-top: 1px solid var(--rule-strong);
     border-bottom: 1px solid var(--rule);
     padding: 14px 0;
     margin: 0 0 32px;
-    max-width: 460px;
+    max-width: 360px;
   }
   .meta div{
     display: flex; flex-direction: column; gap: 2px;
@@ -428,7 +428,7 @@
   .opts button[aria-checked="true"] .opt-num{ color: var(--brass-ink); }
   .opts button[aria-checked="true"] .opt-label{ color: var(--ink); font-weight: 500; }
 
-  /* Multi-select (checkboxes), same row pattern but square ticks */
+  /* Multi-select */
   .checks{
     list-style: none; padding: 0; margin: 0;
     border-top: 1px solid var(--rule);
@@ -670,7 +670,7 @@
     font-size: 17px;
     color: var(--ink-2);
     line-height: 1.2;
-    max-width: 22ch;
+    max-width: 24ch;
     font-variation-settings: "opsz" 36;
   }
 
@@ -713,84 +713,466 @@
     font-variation-settings: "opsz" 14;
   }
 
-  /* Reels mockup — vertical 9:16 frame */
-  .reels-mock{
+  /* ───────── Reels demo (Plate 06) ───────── */
+  .demo-frame{
     position: relative;
-    aspect-ratio: 9 / 16;
-    max-width: 280px;
-    margin: 0 auto 28px;
-    background: var(--paper-2);
-    border: 1px solid var(--rule-strong);
-    border-radius: 6px;
-    overflow: hidden;
-    display: grid;
-    place-items: center;
+    margin: 0 0 22px;
+    padding: 28px 0 0;
   }
-  .reels-mock::before{
-    content:"";
-    position: absolute; inset:0;
-    background-image: repeating-linear-gradient(
-      135deg,
-      transparent 0 14px,
-      #1c1a160c 14px 15px
-    );
-  }
-  .reels-mock .corner{
-    position: absolute; top: 10px; left: 12px;
+  .demo-frame .frame-corner-l,
+  .demo-frame .frame-corner-r{
+    position: absolute;
+    top: 4px;
     font-family: "Instrument Sans", sans-serif;
-    font-size: 9.5px;
+    font-size: 10px;
     letter-spacing: .22em;
     text-transform: uppercase;
     color: var(--ink-3);
-    z-index: 2;
   }
-  .reels-mock .corner-r{
-    position: absolute; top: 10px; right: 12px;
+  .demo-frame .frame-corner-l{ left: 4px; }
+  .demo-frame .frame-corner-r{
+    right: 4px;
     font-family: "Fraunces", serif;
     font-style: italic;
     font-size: 11px;
+    text-transform: none;
+    letter-spacing: 0;
     color: var(--ink-3);
-    z-index: 2;
   }
-  .reels-mock .play{
-    position: relative; z-index: 1;
-    width: 64px; height: 64px;
+
+  .phone-frame{
+    position: relative;
+    width: 100%;
+    max-width: 256px;
+    margin: 0 auto;
+    aspect-ratio: 9 / 19.5;
+    background: #0a0907;
+    border-radius: 32px;
+    padding: 7px;
+    box-shadow:
+      0 22px 44px -22px rgba(28,26,22,.55),
+      0 8px 18px -8px rgba(28,26,22,.4),
+      inset 0 0 0 1px rgba(242,236,224,.05);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .phone-frame:focus-visible{
+    outline: 2px solid var(--focus);
+    outline-offset: 4px;
+  }
+  .phone-screen{
+    position: relative;
+    width: 100%; height: 100%;
+    background: var(--paper-2);
+    border-radius: 24px;
+    overflow: hidden;
+  }
+  .reel{
+    position: absolute; inset: 0;
+    opacity: 0;
+    transition: opacity .35s var(--t);
+    display: block;
+  }
+  .reel.is-active{ opacity: 1; }
+  .reel-bg{
+    position: absolute; inset: 0;
+    z-index: 0;
+  }
+  .reel[data-reel="0"] .reel-bg{
+    background:
+      radial-gradient(circle at 38% 32%, rgba(216,176,124,.55) 0%, rgba(154,107,47,.42) 28%, transparent 55%),
+      linear-gradient(160deg, #3a2f22 0%, #1c1a16 70%);
+  }
+  .reel[data-reel="1"] .reel-bg{
+    background:
+      radial-gradient(circle at 30% 38%, rgba(196,168,134,.5) 0%, rgba(117,97,74,.4) 28%, transparent 55%),
+      linear-gradient(155deg, #322a22 0%, #1c1a16 70%);
+  }
+  .reel[data-reel="2"] .reel-bg{
+    background:
+      radial-gradient(circle at 42% 30%, rgba(220,192,142,.55) 0%, rgba(138,113,80,.42) 28%, transparent 55%),
+      linear-gradient(165deg, #3d3325 0%, #1c1a16 70%);
+  }
+  .reel::before, .reel::after{
+    content:""; position: absolute; left: 0; right: 0;
+    z-index: 1; pointer-events: none;
+  }
+  .reel::before{
+    top: 0; height: 86px;
+    background: linear-gradient(180deg, rgba(0,0,0,.55), transparent);
+  }
+  .reel::after{
+    bottom: 0; height: 130px;
+    background: linear-gradient(0deg, rgba(0,0,0,.7), transparent);
+  }
+
+  .reel-top{
+    position: absolute; top: 10px; left: 10px; right: 10px;
+    z-index: 4;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .reel-progress{
+    flex: 1; height: 2px;
+    background: rgba(242,236,224,.22);
+    border-radius: 1px;
+    position: relative;
+    overflow: hidden;
+  }
+  .reel-progress .fill{
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 0;
+    background: var(--paper);
+    transform-origin: left;
+  }
+  .reel.is-active .reel-progress .fill{
+    animation: progress 6s linear forwards;
+  }
+  @keyframes progress { from { width: 0; } to { width: 100%; } }
+
+  .trending-badge{
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 8px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--paper);
+    background: rgba(154,107,47,.88);
+    padding: 3px 7px;
+    border-radius: 2px;
+    display: none;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .reel[data-trending="1"] .trending-badge{ display: inline-block; }
+
+  .reel-hook{
+    position: relative; z-index: 2;
+    margin: 60px 18px 0;
+    color: var(--paper);
+    text-shadow: 0 1px 8px rgba(0,0,0,.55);
+    text-wrap: balance;
+  }
+  .reel[data-reel="0"] .reel-hook{
+    font-family: "Instrument Serif", "Fraunces", serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 24px;
+    line-height: 1.12;
+    letter-spacing: -.01em;
+  }
+  .reel[data-reel="1"] .reel-hook,
+  .reel[data-reel="2"] .reel-hook{
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 1.18;
+    letter-spacing: -.005em;
+    font-variation-settings: "opsz" 36;
+  }
+
+  .reel-subtitle{
+    position: absolute; bottom: 116px; left: 18px; right: 18px;
+    z-index: 3;
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.32;
+    color: var(--paper);
+    text-shadow: 0 1px 6px rgba(0,0,0,.75);
+    text-align: center;
+    letter-spacing: .005em;
+  }
+  .reel-subtitle .w{
+    display: inline-block;
+    opacity: 0;
+    margin-right: 4px;
+  }
+  .reel.is-active .reel-subtitle .w{
+    animation: word-in .22s var(--t) forwards;
+  }
+  @keyframes word-in { to { opacity: 1; transform: none; } }
+
+  .reel-list{
+    position: relative; z-index: 2;
+    margin: 18px 22px 0;
+    padding: 0;
+    list-style: none;
+    color: var(--paper);
+    font-family: "Fraunces", serif;
+    font-size: 15px;
+    font-variation-settings: "opsz" 36;
+  }
+  .reel-list li{
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 6px;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(242,236,224,.18);
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  .reel-list li .ln{
+    font-style: italic;
+    font-family: "Instrument Serif", serif;
+    color: rgba(242,236,224,.7);
+    font-size: 13.5px;
+  }
+  .reel.is-active .reel-list li{
+    animation: list-in .35s var(--t) forwards;
+  }
+  @keyframes list-in { to { opacity: 1; transform: none; } }
+
+  .reel-timeline{
+    position: relative; z-index: 2;
+    margin: 16px 20px 0;
+    color: var(--paper);
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 36;
+  }
+  .reel-timeline .tl-row{
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(242,236,224,.18);
+    opacity: 0;
+    transform: translateY(8px);
+    font-size: 13.5px;
+  }
+  .reel.is-active .reel-timeline .tl-row{
+    animation: list-in .35s var(--t) forwards;
+  }
+  .reel-timeline .tl-week{
+    font-style: italic;
+    font-family: "Instrument Serif", serif;
+    color: rgba(242,236,224,.72);
+    font-size: 12.5px;
+    letter-spacing: .01em;
+  }
+
+  /* per-reel animation delays */
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(1){ animation-delay: .7s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(2){ animation-delay: .9s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(3){ animation-delay: 1.1s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(4){ animation-delay: 1.3s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(5){ animation-delay: 1.5s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(6){ animation-delay: 1.8s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(7){ animation-delay: 2.0s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(8){ animation-delay: 2.2s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(9){ animation-delay: 2.4s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(10){ animation-delay: 2.6s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(11){ animation-delay: 2.8s; }
+  .reel[data-reel="0"] .reel-subtitle .w:nth-child(12){ animation-delay: 3.0s; }
+
+  .reel[data-reel="1"] .reel-list li:nth-child(1){ animation-delay: .7s; }
+  .reel[data-reel="1"] .reel-list li:nth-child(2){ animation-delay: 1.3s; }
+  .reel[data-reel="1"] .reel-list li:nth-child(3){ animation-delay: 1.9s; }
+
+  .reel[data-reel="2"] .reel-timeline .tl-row:nth-child(1){ animation-delay: .7s; }
+  .reel[data-reel="2"] .reel-timeline .tl-row:nth-child(2){ animation-delay: 1.2s; }
+  .reel[data-reel="2"] .reel-timeline .tl-row:nth-child(3){ animation-delay: 1.7s; }
+  .reel[data-reel="2"] .reel-timeline .tl-row:nth-child(4){ animation-delay: 2.2s; }
+
+  .reel-right{
+    position: absolute; right: 10px; bottom: 96px;
+    z-index: 3;
+    display: flex; flex-direction: column; gap: 16px;
+    align-items: center;
+  }
+  .reel-right .r-icon{
+    appearance: none; border: 0; background: transparent;
+    color: var(--paper);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .reel-right .r-icon svg{
+    width: 22px; height: 22px;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
+  }
+  .reel-right .r-icon .count{
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 9.5px;
+    letter-spacing: .02em;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .r-avatar{
+    width: 28px; height: 28px;
     border-radius: 50%;
-    border: 1px solid var(--rule-strong);
-    background: rgba(242, 236, 224, .6);
-    display: grid; place-items: center;
-    backdrop-filter: blur(2px);
+    background:
+      radial-gradient(circle at 35% 32%, #ecd6a8 0%, #b59565 40%, #6e4d23 100%);
+    border: 1.5px solid var(--paper);
+    margin-top: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
   }
-  .reels-mock .play::after{
+
+  .reel-bottom{
+    position: absolute; left: 14px; right: 58px; bottom: 22px;
+    z-index: 3;
+    color: var(--paper);
+  }
+  .reel-bottom .username{
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    margin-bottom: 4px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.55);
+  }
+  .reel-bottom .caption{
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: rgba(242,236,224,.92);
+    margin-bottom: 7px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.55);
+  }
+  .reel-bottom .audio-strip{
+    display: flex; align-items: center; gap: 6px;
+    font-size: 9.5px;
+    color: rgba(242,236,224,.85);
+  }
+  .reel-bottom .audio-name{
+    font-family: "Instrument Sans", sans-serif;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 120px;
+    letter-spacing: .005em;
+  }
+  .waveform{
+    display: flex; align-items: center; gap: 1.5px;
+    height: 11px;
+    flex-shrink: 0;
+  }
+  .waveform span{
+    display: inline-block;
+    width: 1.5px;
+    height: 6px;
+    background: rgba(242,236,224,.85);
+    border-radius: 1px;
+    transform-origin: bottom;
+    animation: wave 1.1s ease-in-out infinite;
+  }
+  .waveform span:nth-child(1){ animation-delay: 0s; }
+  .waveform span:nth-child(2){ animation-delay: .1s; }
+  .waveform span:nth-child(3){ animation-delay: .25s; }
+  .waveform span:nth-child(4){ animation-delay: .15s; }
+  .waveform span:nth-child(5){ animation-delay: .35s; }
+  .waveform span:nth-child(6){ animation-delay: .05s; }
+  .waveform span:nth-child(7){ animation-delay: .3s; }
+  .waveform span:nth-child(8){ animation-delay: .2s; }
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.6); }
+    50% { transform: scaleY(1.7); }
+  }
+
+  .reel-dots{
+    position: absolute; bottom: 7px; left: 0; right: 0;
+    z-index: 4;
+    display: flex; gap: 6px; justify-content: center;
+    pointer-events: none;
+  }
+  .reel-dots .dot{
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: rgba(242,236,224,.4);
+    transition: background .25s var(--t), transform .25s var(--t);
+  }
+  .reel-dots .dot.is-on{
+    background: var(--paper);
+    transform: scale(1.25);
+  }
+
+  /* paused state — pause all animations inside the phone */
+  .phone-frame.is-paused .reel.is-active .reel-progress .fill,
+  .phone-frame.is-paused .reel.is-active .reel-subtitle .w,
+  .phone-frame.is-paused .reel.is-active .reel-list li,
+  .phone-frame.is-paused .reel.is-active .reel-timeline .tl-row,
+  .phone-frame.is-paused .waveform span{
+    animation-play-state: paused;
+  }
+  .phone-frame.is-paused::after{
+    content:""; position: absolute; inset: 7px;
+    border-radius: 24px;
+    background: radial-gradient(circle at center, rgba(28,26,22,.0) 40%, rgba(28,26,22,.18) 100%);
+    pointer-events: none;
+    z-index: 6;
+  }
+  .pause-hint{
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 7;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(242,236,224,.92);
+    display: none;
+    align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  }
+  .pause-hint::after{
     content:"";
     width: 0; height: 0;
-    border-left: 14px solid var(--ink);
-    border-top: 9px solid transparent;
-    border-bottom: 9px solid transparent;
+    border-left: 16px solid var(--ink);
+    border-top: 11px solid transparent;
+    border-bottom: 11px solid transparent;
     margin-left: 4px;
   }
-  .reels-mock .strip{
-    position: absolute; left: 12px; right: 12px; bottom: 12px;
-    z-index: 2;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .reels-mock .strip .ln{
-    height: 6px;
-    background: rgba(28,26,22,.18);
-    border-radius: 1px;
-  }
-  .reels-mock .strip .ln.short{ width: 56%; }
-  .reels-mock .strip .ln.mid{ width: 78%; }
-  .reels-mock .cap{
-    text-align: center;
-    margin-top: 10px;
+  .phone-frame.is-paused .pause-hint{ display: flex; }
+
+  .demo-microcopy{
     font-family: "Fraunces", serif;
     font-style: italic;
-    font-size: 12.5px;
-    color: var(--ink-3);
+    font-size: 14px;
+    color: var(--ink-2);
+    text-align: center;
+    margin: 6px auto 28px;
+    max-width: 40ch;
     font-variation-settings: "opsz" 14;
+    text-wrap: pretty;
+    line-height: 1.45;
   }
-  .reels-row{ display: flex; flex-direction: column; align-items: center; }
+
+  /* Pillars */
+  .pillars{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin: 0 0 8px;
+    border-top: 1px solid var(--rule-strong);
+  }
+  .pillar{
+    padding: 16px 0;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 38px 1fr;
+    gap: 14px;
+    align-items: baseline;
+  }
+  .pillar .pn{
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--brass-ink);
+    font-variant-numeric: lining-nums;
+  }
+  .pillar h4{
+    font-family: "Fraunces", serif;
+    font-size: 17px;
+    font-weight: 500;
+    margin: 0 0 4px;
+    color: var(--ink);
+    font-variation-settings: "opsz" 36;
+  }
+  .pillar p{
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
 
   /* ───────── VW PSM stack ───────── */
   .vw-explainer{
@@ -813,7 +1195,7 @@
     border-top: 1px solid var(--rule);
   }
 
-  /* ───────── Conditional reveal block (Q20) ───────── */
+  /* ───────── Conditional reveal block (Plate 12 contact) ───────── */
   .reveal{
     max-height: 0;
     overflow: hidden;
@@ -827,33 +1209,13 @@
     padding-top: 18px;
     border-top: 1px solid var(--rule);
   }
-  .contact-methods{
+  .contact-fields{
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  .contact-methods button{
-    appearance: none;
-    background: transparent;
-    border: 1px solid var(--rule-strong);
-    color: var(--ink-2);
-    padding: 10px 12px;
-    font-family: inherit;
-    font-size: 13.5px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: border-color .2s var(--t), background .2s var(--t), color .2s var(--t);
-  }
-  .contact-methods button:hover{ border-color: var(--ink); color: var(--ink); }
-  .contact-methods button[aria-checked="true"]{
-    border-color: var(--brass);
-    background: #9a6b2f0f;
-    color: var(--brass-ink);
+    gap: 10px;
   }
 
   /* ───────── Thank you ───────── */
-  .thanks .col{ padding-top: 4vh; }
+  .thanks .col{ padding-top: 2vh; }
   .thanks .seal{
     display: inline-flex;
     align-items: center; gap: 10px;
@@ -870,7 +1232,7 @@
   .thanks h2{
     font-family: "Fraunces", serif;
     font-weight: 300;
-    font-size: clamp(38px, 10vw, 60px);
+    font-size: clamp(40px, 11vw, 64px);
     line-height: 0.98;
     letter-spacing: -0.018em;
     margin: 0 0 22px;
@@ -886,7 +1248,7 @@
     font-size: 16px;
     line-height: 1.55;
     color: var(--ink-2);
-    max-width: 42ch;
+    max-width: 36ch;
     margin: 0 0 24px;
     text-wrap: pretty;
   }
@@ -896,6 +1258,7 @@
     font-family: "Instrument Serif", serif;
     font-style: italic;
     margin: 0 0 8px;
+    max-width: 40ch;
   }
 
   /* ───────── Bottom chrome ───────── */
@@ -921,7 +1284,6 @@
     font-variation-settings: "opsz" 9;
   }
   .imprint .sep{ margin: 0 6px; opacity: .5; }
-
   footer.final{ grid-template-columns: 1fr; }
 
   .sr{
@@ -930,19 +1292,21 @@
     white-space: nowrap; border: 0;
   }
 
-  /* small viewport tweaks */
   @media (max-width: 380px){
     .screen{ padding: 22px 18px 20px; }
     h1.q{ font-size: 28px; }
-    .meta{ grid-template-columns: 1fr; gap: 10px; max-width: 100%; }
+    .meta{ grid-template-columns: 1fr; gap: 10px; }
     .meta div + div{ padding-left: 0; border-left: 0; border-top: 1px solid var(--rule); padding-top: 10px; }
-    .reels-mock{ max-width: 220px; }
-    .contact-methods{ grid-template-columns: 1fr; }
+    .phone-frame{ max-width: 220px; }
+    .reel-hook{ margin: 52px 14px 0; }
+    .reel[data-reel="0"] .reel-hook{ font-size: 21px; }
+    .reel[data-reel="1"] .reel-hook,
+    .reel[data-reel="2"] .reel-hook{ font-size: 17px; }
   }
   @media (min-width: 640px){
     :root{ --bar-h: 64px; --foot-h: 96px; }
     .screen{ padding: 48px 32px 32px; }
-    .reels-mock{ max-width: 320px; }
+    .phone-frame{ max-width: 288px; }
   }
 </style>
 </head>
@@ -953,24 +1317,23 @@
   <header>
     <div class="brand">
       <span class="bullet" aria-hidden="true"></span>
-      A short <i>study</i>
+      The Voice <i>Study</i>
     </div>
     <div class="progress" aria-hidden="true"><span id="bar"></span></div>
-    <div class="step-count" id="stepCount">№ 01 <em>/</em> 10</div>
+    <div class="step-count" id="stepCount">№ 01 <em>/</em> 12</div>
   </header>
 
   <main aria-live="polite">
 
-    <!-- ───────── 1. Landing ───────── -->
+    <!-- ───────── 01 · Landing ───────── -->
     <section class="screen landing is-active" data-i="0">
       <div class="col">
-        <div class="eyebrow"><span class="dot"></span> A short research conversation · Thank you for your time</div>
-        <h1>Helping me <em>think</em> this through.</h1>
+        <div class="eyebrow"><span class="dot"></span> A short survey · For founders building under their own name</div>
+        <h1>What if your <em>voice</em><br/>could be in two places&nbsp;at&nbsp;once?</h1>
         <p class="promise">
-          You're getting this because I trust you to be honest. I'm trying to figure out if an idea I'm building actually makes sense &mdash; and where I'm wrong about it. Your real take, especially the critical one, is what I need.
-        </p>
-        <p class="promise" style="margin-top:-18px; color: var(--ink-3); font-size:15px;">
-          No pitch, no email gate, no follow-up unless you want one.
+          A short study on building an AI clone for high-ticket
+          coaches, consultants and agency owners. Your answers shape
+          what we build, and what it costs.
         </p>
 
         <dl class="meta">
@@ -979,63 +1342,52 @@
             <dd>~7 <i>min</i></dd>
           </div>
           <div>
-            <dt>Sections</dt>
-            <dd>09 <i>short</i></dd>
-          </div>
-          <div>
-            <dt>Stakes</dt>
-            <dd>Low <i>· honest</i></dd>
+            <dt>Questions</dt>
+            <dd>12 <i>short</i></dd>
           </div>
         </dl>
 
         <button class="btn" id="beginBtn" type="button">
-          Begin <span class="arr">→</span>
+          Begin the study <span class="arr">→</span>
         </button>
       </div>
     </section>
 
-    <!-- ───────── 2. Their world ───────── -->
+    <!-- ───────── 02 · Qualification ───────── -->
     <section class="screen" data-i="1" aria-hidden="true">
       <div class="col">
         <div class="marker">
-          <span class="num">№ 02 <span>/ 10</span></span>
+          <span class="num">№ 02 <span>/ 12</span></span>
           <span class="rule"></span>
-          <span class="kicker">Your world</span>
+          <span class="kicker">Qualification</span>
         </div>
-        <h1 class="q">A little context, before <em>anything</em>&nbsp;else.</h1>
-        <p class="sub">Four quick ones. Rough is fine — none of these are graded.</p>
+        <h1 class="q">Which best describes the <em>work</em> you do today?</h1>
+        <p class="sub">Pick the one that's closest. Don't overthink it.</p>
 
-        <!-- Q1 role -->
-        <div class="q-block">
-          <h2 class="qs">What do you do?</h2>
-          <p class="sub-q">Pick the one that's closest.</p>
-          <ul class="opts" role="radiogroup" aria-label="What do you do" data-group="q1">
-            <li><button type="button" role="radio" aria-checked="false" data-val="coach"><span class="opt-num">i.</span><span class="opt-label">Coach</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="consultant"><span class="opt-num">ii.</span><span class="opt-label">Consultant</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="agency"><span class="opt-num">iii.</span><span class="opt-label">Agency owner</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="service"><span class="opt-num">iv.</span><span class="opt-label">Service provider</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="founder"><span class="opt-num">v.</span><span class="opt-label">Founder</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="other"><span class="opt-num">vi.</span><span class="opt-label">Something else</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-          </ul>
+        <ul class="opts" role="radiogroup" aria-label="What do you do" data-group="q1">
+          <li><button type="button" role="radio" aria-checked="false" data-val="coach"><span class="opt-num">i.</span><span class="opt-label">Coach &mdash; one-on-one or cohort, selling outcomes</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="consultant"><span class="opt-num">ii.</span><span class="opt-label">Consultant &mdash; advisory or done-with-you engagements</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="agency"><span class="opt-num">iii.</span><span class="opt-label">Agency owner &mdash; team of three or more, done-for-you</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="creator"><span class="opt-num">iv.</span><span class="opt-label">Creator-operator &mdash; an audience that funds the business</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="founder"><span class="opt-num">v.</span><span class="opt-label">Founder &mdash; building something else under my own name</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="other"><span class="opt-num">vi.</span><span class="opt-label">Something else</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ───────── 03 · Where you're at now ───────── -->
+    <section class="screen" data-i="2" aria-hidden="true">
+      <div class="col">
+        <div class="marker">
+          <span class="num">№ 03 <span>/ 12</span></span>
+          <span class="rule"></span>
+          <span class="kicker">Where you're at now</span>
         </div>
+        <h1 class="q">A snapshot of your <em>current</em> rhythm.</h1>
+        <p class="sub">Two quick ones. Rough is fine.</p>
 
-        <!-- Q2 revenue -->
         <div class="q-block">
-          <h2 class="qs">Roughly how much business <em>revenue</em> per month right now?</h2>
-          <p class="sub-q">Rough is fine — order-of-magnitude is the answer here.</p>
-          <ul class="opts" role="radiogroup" aria-label="Monthly revenue" data-group="q2">
-            <li><button type="button" role="radio" aria-checked="false" data-val="0"><span class="opt-num">i.</span><span class="opt-label">Pre-revenue / under ₹50k</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="50k_2L"><span class="opt-num">ii.</span><span class="opt-label">₹50k – ₹2 L</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="2L_5L"><span class="opt-num">iii.</span><span class="opt-label">₹2 L – ₹5 L</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="5L_15L"><span class="opt-num">iv.</span><span class="opt-label">₹5 L – ₹15 L</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="15L+"><span class="opt-num">v.</span><span class="opt-label">₹15 L+</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-            <li><button type="button" role="radio" aria-checked="false" data-val="skip"><span class="opt-num">vi.</span><span class="opt-label">Rather not say</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-          </ul>
-        </div>
-
-        <!-- Q3 posting frequency -->
-        <div class="q-block">
-          <h2 class="qs">How often do you currently post Reels (or short-form video) for your work?</h2>
+          <h2 class="qs">How often do you post Reels (or short-form video) for your work right now?</h2>
           <ul class="opts" role="radiogroup" aria-label="Posting frequency" data-group="q3">
             <li><button type="button" role="radio" aria-checked="false" data-val="daily"><span class="opt-num">i.</span><span class="opt-label">Daily</span><span class="opt-tick" aria-hidden="true"></span></button></li>
             <li><button type="button" role="radio" aria-checked="false" data-val="few_week"><span class="opt-num">ii.</span><span class="opt-label">A few times a week</span><span class="opt-tick" aria-hidden="true"></span></button></li>
@@ -1045,9 +1397,8 @@
           </ul>
         </div>
 
-        <!-- Q4 reasons multi-select -->
         <div class="q-block">
-          <h2 class="qs">If you post less than you'd like, what's the <em>actual</em> reason?</h2>
+          <h2 class="qs">If less than you'd like &mdash; what's the <em>actual</em> reason?</h2>
           <p class="sub-q">Tick all that apply. Be honest — vanity-friendly answers don't help.</p>
           <ul class="checks" aria-label="Reasons" data-group="q4">
             <li><button type="button" role="checkbox" aria-checked="false" data-val="time"><span class="opt-num">i.</span><span class="opt-label">No time</span><span class="check-tick" aria-hidden="true"></span></button></li>
@@ -1064,16 +1415,16 @@
       </div>
     </section>
 
-    <!-- ───────── 3. Unanchored price ───────── -->
-    <section class="screen" data-i="2" aria-hidden="true">
+    <!-- ───────── 04 · Unanchored price expectation ───────── -->
+    <section class="screen" data-i="3" aria-hidden="true">
       <div class="col">
         <div class="marker">
-          <span class="num">№ 03 <span>/ 10</span></span>
+          <span class="num">№ 04 <span>/ 12</span></span>
           <span class="rule"></span>
-          <span class="kicker">A gut number</span>
+          <span class="kicker">Before I show you what I'm building</span>
         </div>
-        <h1 class="q">Imagine you hired a small team to produce 3 Instagram Reels every week for a year &mdash; scripting, filming, editing, posting. What would you expect that to <em>cost</em> per&nbsp;month?</h1>
-        <p class="sub">This is a gut number before I tell you anything about what I'm building. There's no right answer.</p>
+        <h1 class="q">Imagine you hired a small team to produce three Reels every week for a year &mdash; scripting, filming, editing, posting. What would you expect that to <em>cost</em> per&nbsp;month?</h1>
+        <p class="sub">A gut number is fine. No right answer.</p>
 
         <div class="currency-row" role="group" aria-label="Monthly cost guess">
           <span class="sym" aria-hidden="true">₹</span>
@@ -1083,95 +1434,269 @@
       </div>
     </section>
 
-    <!-- ───────── 4. Concept reveal ───────── -->
-    <section class="screen concept" data-i="3" aria-hidden="true">
+    <!-- ───────── 05 · Trust slider ───────── -->
+    <section class="screen" data-i="4" aria-hidden="true">
       <div class="col">
         <div class="marker">
-          <span class="num">№ 04 <span>/ 10</span></span>
+          <span class="num">№ 05 <span>/ 12</span></span>
           <span class="rule"></span>
-          <span class="kicker">The Concept</span>
+          <span class="kicker">Trust</span>
         </div>
+        <h1 class="q">How far would you trust an AI version of <em>you</em> &mdash; your voice, your face &mdash; to post for you?</h1>
+        <p class="sub">One is "not a single Reel." Five is "ship them without me reading."</p>
 
-        <div class="eyebrow"><span class="dot"></span> Here's the rough idea</div>
-        <h2>An AI clone, in <em>your</em> style, that ships Reels on its own.</h2>
-        <p class="lede">
-          Trained on your voice and face. It produces Reels in your style, riding what's trending each week. You approve them, post them. The mock below is a rough sketch of the output &mdash; not a polished pitch, just so you have something concrete to react to.
-        </p>
-
-        <div class="reels-row">
-          <figure class="reels-mock" aria-label="Reels mockup placeholder">
-            <span class="corner">Reels · 01</span>
-            <span class="corner-r"><i>preview</i></span>
-            <div class="play" aria-hidden="true"></div>
-            <div class="strip">
-              <div class="ln short"></div>
-              <div class="ln mid"></div>
-              <div class="ln short"></div>
-            </div>
-          </figure>
-          <p class="cap" style="margin-top:6px; font-family: 'Fraunces', serif; font-style: italic; font-size: 12.5px; color: var(--ink-3);">rough mock &mdash; not the real output</p>
+        <div class="slider-wrap">
+          <div class="slider-labels">
+            <span>Not a single Reel</span>
+            <span>Ship them without me</span>
+          </div>
+          <div class="scale" id="trustScale" role="slider"
+               aria-valuemin="1" aria-valuemax="5" aria-valuenow="3"
+               aria-label="Trust in AI Reels, one to five" tabindex="0">
+            <div class="axis"></div>
+            <div class="knob" id="trustKnob" style="left:50%"></div>
+          </div>
+          <div class="slider-readout">
+            <div class="big" id="trustBig"><i>3</i></div>
+            <div class="label" id="trustLabel">Drafts only &mdash; I review every frame before it goes out.</div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ───────── 5. First honest reaction ───────── -->
-    <section class="screen" data-i="4" aria-hidden="true">
+    <!-- ───────── 06 · Concept + Reels demo ───────── -->
+    <section class="screen concept" data-i="5" aria-hidden="true">
       <div class="col">
         <div class="marker">
-          <span class="num">№ 05 <span>/ 10</span></span>
+          <span class="num">№ 06 <span>/ 12</span></span>
           <span class="rule"></span>
-          <span class="kicker">First take</span>
+          <span class="kicker">The Concept</span>
+        </div>
+
+        <div class="eyebrow"><span class="dot"></span> What we're building</div>
+        <h2>An <em>understudy</em> that shows up as you&nbsp;&mdash; every day, in&nbsp;motion.</h2>
+        <p class="lede">
+          A clone of your voice and your face, trained on a few hours of you talking. Each week, it watches what's trending on Instagram and produces three Reels in your style &mdash; your hook, your delivery, your face on camera. You wake up, approve, post.
+        </p>
+
+        <figure class="demo-frame" aria-label="Reels demo">
+          <span class="frame-corner-l">Plate · 01</span>
+          <span class="frame-corner-r"><i>preview</i></span>
+          <div class="phone-frame" id="reelsPhone" role="button" tabindex="0" aria-label="Reels demo, tap to pause">
+            <div class="phone-screen">
+
+              <!-- Reel 0 — Hot take -->
+              <div class="reel is-active" data-reel="0" data-trending="1">
+                <div class="reel-bg"></div>
+                <div class="reel-top">
+                  <div class="reel-progress"><span class="fill"></span></div>
+                  <span class="trending-badge">Trending this week</span>
+                </div>
+                <div class="reel-hook">Stop selling.<br/>Start positioning.</div>
+                <div class="reel-subtitle"><span class="w">Most</span><span class="w">consultants</span><span class="w">pitch</span><span class="w">services.</span><span class="w">The</span><span class="w">ones</span><span class="w">who</span><span class="w">win</span><span class="w">pitch</span><span class="w">transformation.</span></div>
+                <div class="reel-right">
+                  <button class="r-icon heart" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M12 21s-7-4.5-9-9.5C1 7 4 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 3 0 6 3 4 7.5-2 5-9 9.5-9 9.5z"/></svg>
+                    <span class="count" data-count-target="heart">12.4K</span>
+                  </button>
+                  <button class="r-icon comment" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M21 12c0 4-4 7-9 7-1.4 0-2.6-.2-3.7-.6L3 20l1.4-4.3C3.5 14.1 3 13.1 3 12 3 8 7 5 12 5s9 3 9 7z"/></svg>
+                    <span class="count">87</span>
+                  </button>
+                  <button class="r-icon share" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9z"/></svg>
+                    <span class="count">340</span>
+                  </button>
+                  <button class="r-icon save" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M6 4h12v18l-6-4-6 4V4z"/></svg>
+                  </button>
+                  <div class="r-avatar" aria-hidden="true"></div>
+                </div>
+                <div class="reel-bottom">
+                  <div class="username">@sample.creator</div>
+                  <div class="caption">If your offer sounds like everyone else's, your price has to.</div>
+                  <div class="audio-strip">
+                    <span class="audio-name">♫ Original audio · sample.creator</span>
+                    <div class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reel 1 — Teaching list -->
+              <div class="reel" data-reel="1">
+                <div class="reel-bg"></div>
+                <div class="reel-top">
+                  <div class="reel-progress"><span class="fill"></span></div>
+                  <span class="trending-badge">Trending this week</span>
+                </div>
+                <div class="reel-hook">3 mistakes killing your high-ticket offer</div>
+                <ol class="reel-list">
+                  <li><span class="ln">01.</span><span>Priced like a vendor</span></li>
+                  <li><span class="ln">02.</span><span>Offer has no edge</span></li>
+                  <li><span class="ln">03.</span><span>CTA feels desperate</span></li>
+                </ol>
+                <div class="reel-right">
+                  <button class="r-icon heart" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M12 21s-7-4.5-9-9.5C1 7 4 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 3 0 6 3 4 7.5-2 5-9 9.5-9 9.5z"/></svg>
+                    <span class="count" data-count-target="heart">8.2K</span>
+                  </button>
+                  <button class="r-icon comment" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M21 12c0 4-4 7-9 7-1.4 0-2.6-.2-3.7-.6L3 20l1.4-4.3C3.5 14.1 3 13.1 3 12 3 8 7 5 12 5s9 3 9 7z"/></svg>
+                    <span class="count">142</span>
+                  </button>
+                  <button class="r-icon share" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9z"/></svg>
+                    <span class="count">510</span>
+                  </button>
+                  <button class="r-icon save" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M6 4h12v18l-6-4-6 4V4z"/></svg>
+                  </button>
+                  <div class="r-avatar" aria-hidden="true"></div>
+                </div>
+                <div class="reel-bottom">
+                  <div class="username">@sample.creator</div>
+                  <div class="caption">Save this before your next sales call.</div>
+                  <div class="audio-strip">
+                    <span class="audio-name">♫ Calm strings · trending</span>
+                    <div class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reel 2 — Story -->
+              <div class="reel" data-reel="2">
+                <div class="reel-bg"></div>
+                <div class="reel-top">
+                  <div class="reel-progress"><span class="fill"></span></div>
+                  <span class="trending-badge">Trending this week</span>
+                </div>
+                <div class="reel-hook">How I closed ₹15L in 30 days &mdash; without a sales call</div>
+                <div class="reel-timeline">
+                  <div class="tl-row"><span class="tl-week">Week 1</span><span>Built the offer</span></div>
+                  <div class="tl-row"><span class="tl-week">Week 2</span><span>5 Reels went viral</span></div>
+                  <div class="tl-row"><span class="tl-week">Week 3</span><span>DMs flooded</span></div>
+                  <div class="tl-row"><span class="tl-week">Week 4</span><span>Closed ₹15L</span></div>
+                </div>
+                <div class="reel-right">
+                  <button class="r-icon heart" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M12 21s-7-4.5-9-9.5C1 7 4 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 3 0 6 3 4 7.5-2 5-9 9.5-9 9.5z"/></svg>
+                    <span class="count" data-count-target="heart">24.1K</span>
+                  </button>
+                  <button class="r-icon comment" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M21 12c0 4-4 7-9 7-1.4 0-2.6-.2-3.7-.6L3 20l1.4-4.3C3.5 14.1 3 13.1 3 12 3 8 7 5 12 5s9 3 9 7z"/></svg>
+                    <span class="count">319</span>
+                  </button>
+                  <button class="r-icon share" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9z"/></svg>
+                    <span class="count">1.2K</span>
+                  </button>
+                  <button class="r-icon save" type="button" tabindex="-1" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M6 4h12v18l-6-4-6 4V4z"/></svg>
+                  </button>
+                  <div class="r-avatar" aria-hidden="true"></div>
+                </div>
+                <div class="reel-bottom">
+                  <div class="username">@sample.creator</div>
+                  <div class="caption">The whole timeline. Comment 'OFFER' for the breakdown.</div>
+                  <div class="audio-strip">
+                    <span class="audio-name">♫ Soft piano · viral cut</span>
+                    <div class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="reel-dots" aria-hidden="true">
+                <span class="dot is-on"></span><span class="dot"></span><span class="dot"></span>
+              </div>
+              <div class="pause-hint" aria-hidden="true"></div>
+            </div>
+          </div>
+        </figure>
+
+        <p class="demo-microcopy">Sample output. This is the rough shape of what the clone produces &mdash; three Reels a week, in your voice, on your face, riding what's working now.</p>
+
+        <div class="pillars">
+          <div class="pillar">
+            <span class="pn">i.</span>
+            <div>
+              <h4>Trained on you, not on the internet</h4>
+              <p>A few hours of your calls and a handful of selfie clips. Enough that it sounds like you and shows up as you &mdash; not a generic AI version.</p>
+            </div>
+          </div>
+          <div class="pillar">
+            <span class="pn">ii.</span>
+            <div>
+              <h4>Rides what's working this week, not last year</h4>
+              <p>A trend engine watches Instagram daily. The clone makes Reels in formats that are converting right now, not last year's playbook.</p>
+            </div>
+          </div>
+          <div class="pillar">
+            <span class="pn">iii.</span>
+            <div>
+              <h4>You approve, you post</h4>
+              <p>Every Reel lands in your inbox as a draft. One tap to publish, or send back for a re-cut. It learns from both.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────── 07 · First reactions ───────── -->
+    <section class="screen" data-i="6" aria-hidden="true">
+      <div class="col">
+        <div class="marker">
+          <span class="num">№ 07 <span>/ 12</span></span>
+          <span class="rule"></span>
+          <span class="kicker">First reactions</span>
         </div>
         <h1 class="q">Before you think about it &mdash; what's the <em>gut</em> reaction?</h1>
-        <p class="sub">Three quick ones. The unfiltered version is the one I want.</p>
+        <p class="sub">Three quick ones. The unfiltered version is what I need.</p>
 
-        <!-- Q6 slider -->
         <div class="q-block">
-          <h2 class="qs">First gut reaction to the concept?</h2>
+          <h2 class="qs">Gut reaction to the idea?</h2>
           <div class="slider-wrap">
             <div class="slider-labels">
               <span>Hate it</span>
               <span>Love it</span>
             </div>
-            <div class="scale" id="scale" role="slider"
+            <div class="scale" id="gutScale" role="slider"
                  aria-valuemin="1" aria-valuemax="7" aria-valuenow="4"
                  aria-label="Gut reaction, hate to love" tabindex="0">
               <div class="axis"></div>
-              <div class="knob" id="knob" style="left:50%"></div>
+              <div class="knob" id="gutKnob" style="left:50%"></div>
             </div>
             <div class="slider-readout">
-              <div class="big" id="bigNum"><i>4</i></div>
-              <div class="label" id="bigLabel">Meh &mdash; could go either way.</div>
+              <div class="big" id="gutBig"><i>4</i></div>
+              <div class="label" id="gutLabel">Meh &mdash; could go either way.</div>
             </div>
           </div>
         </div>
 
-        <!-- Q7 excites -->
         <div class="q-block">
-          <h2 class="qs">What's the first thing that excites you about it, if anything?</h2>
-          <textarea class="input-area" id="q7" placeholder="One or two sentences is fine. If nothing excites you, say that — that's also useful." rows="3"></textarea>
+          <h2 class="qs">What's the first thing that excites you, if anything?</h2>
+          <p class="sub-q">Optional. If nothing excites you, say that — that's also useful.</p>
+          <textarea class="input-area" id="q7" placeholder="One or two sentences is fine." rows="3"></textarea>
         </div>
 
-        <!-- Q8 worries (required) -->
         <div class="q-block">
-          <h2 class="qs">What's the first thing that worries or annoys you about it?<span class="req-mark">required</span></h2>
-          <p class="sub-q">This being required is the point — please be honest.</p>
+          <h2 class="qs">What's the first thing that worries you?<span class="req-mark">required</span></h2>
+          <p class="sub-q">This being required is intentional — please be honest.</p>
           <textarea class="input-area" id="q8" placeholder="Be specific — 'sounds slimy' beats 'idk, not sure'" rows="3"></textarea>
           <div class="required-hint" id="q8Hint">A specific worry helps more than a polite one.</div>
         </div>
       </div>
     </section>
 
-    <!-- ───────── 6. Van Westendorp ───────── -->
-    <section class="screen" data-i="5" aria-hidden="true">
+    <!-- ───────── 08 · Van Westendorp PSM ───────── -->
+    <section class="screen" data-i="7" aria-hidden="true">
       <div class="col">
         <div class="marker">
-          <span class="num">№ 06 <span>/ 10</span></span>
+          <span class="num">№ 08 <span>/ 12</span></span>
           <span class="rule"></span>
-          <span class="kicker">Price sensitivity</span>
+          <span class="kicker">Four prices to find the real range</span>
         </div>
-        <h1 class="q">Now, the <em>price</em> &mdash; from four angles.</h1>
-        <p class="vw-explainer">These four questions together help me figure out the real price band. There's no trick &mdash; answer each independently.</p>
+        <h1 class="q">Now the price &mdash; from <em>four</em> angles.</h1>
+        <p class="vw-explainer">Answer each independently &mdash; they're not building on each other. There's no trick.</p>
 
         <div class="vw-stack">
           <div class="q-block">
@@ -1179,35 +1704,35 @@
             <div class="currency-row"><span class="sym">₹</span><input id="q9" type="text" inputmode="numeric" autocomplete="off" placeholder="too expensive" /></div>
           </div>
           <div class="q-block">
-            <h2 class="qs">At what monthly price would this start to feel <em>expensive</em>, but you'd still consider it if it delivered?</h2>
+            <h2 class="qs">At what monthly price would it start to feel <em>expensive</em> &mdash; but you'd still consider it if it delivered?</h2>
             <div class="currency-row"><span class="sym">₹</span><input id="q10" type="text" inputmode="numeric" autocomplete="off" placeholder="getting expensive" /></div>
           </div>
           <div class="q-block">
-            <h2 class="qs">At what monthly price would this feel like a <em>good deal</em>?</h2>
+            <h2 class="qs">At what monthly price would it feel like a <em>good deal</em>?</h2>
             <div class="currency-row"><span class="sym">₹</span><input id="q11" type="text" inputmode="numeric" autocomplete="off" placeholder="a good deal" /></div>
           </div>
           <div class="q-block">
-            <h2 class="qs">At what monthly price would this be <em>so cheap</em> that you'd question whether it actually works?</h2>
+            <h2 class="qs">At what monthly price would it be <em>so cheap</em> that you'd question whether it actually works?</h2>
             <div class="currency-row"><span class="sym">₹</span><input id="q12" type="text" inputmode="numeric" autocomplete="off" placeholder="suspiciously cheap" /></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ───────── 7. Recurring vs one-time ───────── -->
-    <section class="screen" data-i="6" aria-hidden="true">
+    <!-- ───────── 09 · Recurring vs one-time ───────── -->
+    <section class="screen" data-i="8" aria-hidden="true">
       <div class="col">
         <div class="marker">
-          <span class="num">№ 07 <span>/ 10</span></span>
+          <span class="num">№ 09 <span>/ 12</span></span>
           <span class="rule"></span>
-          <span class="kicker">How you'd want it</span>
+          <span class="kicker">If you had to pick one model</span>
         </div>
         <h1 class="q">If you had to pick <em>one</em>, which would you actually prefer?</h1>
-        <p class="sub">Pick the one you'd really pay for. No "both" option — that's the point.</p>
+        <p class="sub">No "both" option — that's the point.</p>
 
         <ul class="opts" role="radiogroup" aria-label="Pricing model" data-group="q13">
-          <li><button type="button" role="radio" aria-checked="false" data-val="monthly"><span class="opt-num">i.</span><span class="opt-label">Monthly subscription &mdash; keeps producing Reels every month, cancel anytime</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-          <li><button type="button" role="radio" aria-checked="false" data-val="onetime"><span class="opt-num">ii.</span><span class="opt-label">One-time setup fee &mdash; build the clone once, you use it forever, no ongoing cost</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="monthly"><span class="opt-num">i.</span><span class="opt-label">Monthly subscription &mdash; keeps producing every month, cancel anytime</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="onetime"><span class="opt-num">ii.</span><span class="opt-label">One-time setup fee &mdash; build the clone once, you use it forever</span><span class="opt-tick" aria-hidden="true"></span></button></li>
           <li><button type="button" role="radio" aria-checked="false" data-val="setup_plus"><span class="opt-num">iii.</span><span class="opt-label">Setup fee plus a small monthly maintenance</span><span class="opt-tick" aria-hidden="true"></span></button></li>
           <li><button type="button" role="radio" aria-checked="false" data-val="per_reel"><span class="opt-num">iv.</span><span class="opt-label">Pay per Reel &mdash; only when you actually post one</span><span class="opt-tick" aria-hidden="true"></span></button></li>
         </ul>
@@ -1220,86 +1745,94 @@
       </div>
     </section>
 
-    <!-- ───────── 8. Specificity & critical ───────── -->
-    <section class="screen" data-i="7" aria-hidden="true">
+    <!-- ───────── 10 · A few honest ones ───────── -->
+    <section class="screen" data-i="9" aria-hidden="true">
       <div class="col">
         <div class="marker">
-          <span class="num">№ 08 <span>/ 10</span></span>
+          <span class="num">№ 10 <span>/ 12</span></span>
           <span class="rule"></span>
-          <span class="kicker">Get specific</span>
+          <span class="kicker">A few honest ones</span>
         </div>
         <h1 class="q">Now the <em>real</em> test &mdash; specifics, not sentiment.</h1>
-        <p class="sub">Generic answers I can write myself. The specific ones are why I'm asking you.</p>
+        <p class="sub">Required-ness is the design here. The diplomatic answer is the one I don't need.</p>
+
+        <div class="q-block">
+          <h2 class="qs">First thing that worries or annoys you about the idea?<span class="req-mark">required</span></h2>
+          <p class="sub-q">Now that you've seen the price-range too. One or two sentences.</p>
+          <textarea class="input-area" id="q8b" placeholder="Worry, annoyance, suspicion — all useful." rows="3"></textarea>
+        </div>
 
         <div class="q-block">
           <h2 class="qs">Describe one specific Reel you'd actually want this to make for you. Topic, hook, format &mdash; be specific.<span class="req-mark">required</span></h2>
-          <textarea class="input-area" id="q15" placeholder="Be specific — 'Reels about positioning frameworks for B2B founders, hook is a contrarian take, talking-head format' beats 'business content'." rows="4"></textarea>
+          <textarea class="input-area" id="q15" placeholder="'Reels about positioning frameworks for SaaS founders' beats 'business content'" rows="4"></textarea>
           <div class="required-hint" id="q15Hint">A specific answer here helps more than a short one.</div>
         </div>
 
         <div class="q-block">
-          <h2 class="qs">Who's the most similar person in your network you'd recommend this to?</h2>
-          <p class="sub-q">You don't need to name them — just describe them in one line.</p>
-          <textarea class="input-area" id="q16" placeholder="One sentence. 'A solo coach in Bangalore who hates filming but knows what to say.'" rows="2"></textarea>
+          <h2 class="qs">If you bought this and 6 months later it wasn't working for you, what would have <em>gone</em> wrong?<span class="req-mark">required</span></h2>
+          <p class="sub-q">A personal pre-mortem. Pick the failure mode most likely for you specifically.</p>
+          <textarea class="input-area" id="q17" placeholder="The likely failure mode for you." rows="3"></textarea>
         </div>
 
         <div class="q-block">
-          <h2 class="qs">If you bought this and 6 months later it wasn't working for you, what would have <em>gone</em> wrong?</h2>
-          <textarea class="input-area" id="q17" placeholder="The likely failure mode for you, specifically." rows="3"></textarea>
-        </div>
-
-        <div class="q-block">
-          <h2 class="qs">What's the most likely reason this idea <em>fails</em> as a business?<span class="req-mark">required</span></h2>
-          <p class="sub-q">Be ruthless. The diplomatic answer is the one I don't need.</p>
-          <textarea class="input-area" id="q18" placeholder="Market, founder, model, distribution, timing — pick the one most likely to kill it." rows="3"></textarea>
+          <h2 class="qs">Most likely reason this idea <em>fails</em> as a business?<span class="req-mark">required</span></h2>
+          <p class="sub-q">Be ruthless. Market, founder, model, distribution, timing — pick one.</p>
+          <textarea class="input-area" id="q18" placeholder="One or two sentences." rows="3"></textarea>
           <div class="required-hint" id="q18Hint">A specific answer here helps more than a short one.</div>
         </div>
       </div>
     </section>
 
-    <!-- ───────── 9. Commitment + close ───────── -->
-    <section class="screen" data-i="8" aria-hidden="true">
+    <!-- ───────── 11 · Anything you wish I'd asked ───────── -->
+    <section class="screen" data-i="10" aria-hidden="true">
       <div class="col">
         <div class="marker">
-          <span class="num">№ 09 <span>/ 10</span></span>
+          <span class="num">№ 11 <span>/ 12</span></span>
           <span class="rule"></span>
-          <span class="kicker">One last thing</span>
+          <span class="kicker">Anything you wish I'd asked</span>
         </div>
-        <h1 class="q">If I opened a <em>private beta</em> in the next 2 months &mdash; would you put real skin in?</h1>
-        <p class="sub">A ₹500 deposit, fully refundable. Locks your spot if I run a beta at a price you're comfortable with.</p>
+        <h1 class="q">Anything you wish I'd <em>asked</em> but didn't?</h1>
+        <p class="sub">Optional. The thing I missed is often the thing that mattered most.</p>
+
+        <textarea class="input-area" id="q21" placeholder="Free space — write whatever." rows="5"></textarea>
+      </div>
+    </section>
+
+    <!-- ───────── 12 · Optional ₹500 deposit + contact + Submit ───────── -->
+    <section class="screen" data-i="11" aria-hidden="true">
+      <div class="col">
+        <div class="marker">
+          <span class="num">№ 12 <span>/ 12</span></span>
+          <span class="rule"></span>
+          <span class="kicker">One last optional question</span>
+        </div>
+        <h1 class="q">If I open a small <em>private beta</em> in the next two months at a price you're comfortable with &mdash; would you put down a ₹500 fully refundable deposit to lock your spot?</h1>
+        <p class="sub">Optional. Saying no here doesn't change anything else about your answers.</p>
 
         <ul class="opts" role="radiogroup" aria-label="Deposit interest" data-group="q19">
-          <li><button type="button" role="radio" aria-checked="false" data-val="yes"><span class="opt-num">i.</span><span class="opt-label">Yes &mdash; lock my spot.</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-          <li><button type="button" role="radio" aria-checked="false" data-val="no"><span class="opt-num">ii.</span><span class="opt-label">No &mdash; not for me.</span><span class="opt-tick" aria-hidden="true"></span></button></li>
-          <li><button type="button" role="radio" aria-checked="false" data-val="maybe"><span class="opt-num">iii.</span><span class="opt-label">Maybe &mdash; tell me more first.</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="yes"><span class="opt-num">i.</span><span class="opt-label">Yes &mdash; count me in</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="maybe"><span class="opt-num">ii.</span><span class="opt-label">Maybe &mdash; tell me more first</span><span class="opt-tick" aria-hidden="true"></span></button></li>
+          <li><button type="button" role="radio" aria-checked="false" data-val="no"><span class="opt-num">iii.</span><span class="opt-label">No &mdash; I'm here to give feedback, not pre-commit</span><span class="opt-tick" aria-hidden="true"></span></button></li>
         </ul>
 
         <div class="reveal" id="q20Reveal">
-          <h2 class="qs">Best way to reach you for a 15-min call?</h2>
-          <p class="sub-q">All optional. Skip if you'd rather just have me record your input and move on.</p>
-          <div class="contact-methods" role="radiogroup" aria-label="Contact method" data-group="q20method">
-            <button type="button" role="radio" aria-checked="false" data-val="whatsapp">WhatsApp</button>
-            <button type="button" role="radio" aria-checked="false" data-val="email">Email</button>
-            <button type="button" role="radio" aria-checked="false" data-val="skip">Skip</button>
+          <h2 class="qs" style="margin-bottom:6px;">How can I reach you?</h2>
+          <p class="sub-q">Both optional. Neither is gated — leave blank if you'd rather not.</p>
+          <div class="contact-fields">
+            <input class="input-text" id="q20_whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="WhatsApp number — optional" />
+            <input class="input-text" id="q20_email" type="email" autocomplete="email" placeholder="Email — optional" />
           </div>
-          <input class="input-text" id="q20Value" type="text" placeholder="WhatsApp number or email" autocomplete="off" />
-        </div>
-
-        <div class="q-block" style="margin-top:32px;">
-          <h2 class="qs">Anything you wish I'd asked but didn't?</h2>
-          <p class="sub-q">Optional. The thing I missed is often the thing that mattered most.</p>
-          <textarea class="input-area" id="q21" placeholder="Free space — write whatever." rows="3"></textarea>
         </div>
       </div>
     </section>
 
-    <!-- ───────── 10. Final thank-you ───────── -->
-    <section class="screen thanks" data-i="9" aria-hidden="true">
+    <!-- ───────── Post-submit thank-you (unnumbered) ───────── -->
+    <section class="screen thanks" data-i="12" aria-hidden="true">
       <div class="col">
         <div class="seal"><span class="dot"></span> Received with thanks</div>
-        <h2 id="thanksHead">Thank you<span id="thanksName"></span> &mdash; this <em>helps</em>.</h2>
+        <h2 id="thanksHead">You've shaped<br/>what gets <em>built</em>.</h2>
         <p class="note">
-          You're one of a small number of people I'm asking. I read every response by hand, and I'll close the loop only if you asked me to.
+          Twelve answers go a surprisingly long way. I read every response by hand, and write back to the ones that took the time to think.
         </p>
         <p class="quiet" id="depositLine"></p>
       </div>
@@ -1320,8 +1853,8 @@
     </div>
     <div class="imprint">
       Set in Fraunces &amp; Instrument Sans <span class="sep">·</span>
-      A research conversation <span class="sep">·</span>
-      <i>off the record</i>
+      A study by <i>AiEZ</i> <span class="sep">·</span>
+      Bombay &amp; the internet
     </div>
   </footer>
 
@@ -1332,30 +1865,33 @@
   'use strict';
 
   // ───────── Config ─────────
-  const APPS_SCRIPT_URL = '__APPS_SCRIPT_URL__'; // user replaces with deployed Apps Script /exec URL
-  const TOTAL = 10;
+  const APPS_SCRIPT_URL = '__APPS_SCRIPT_URL__';
+  const TOTAL = 12;          // plate count for the progress counter
+  const FINAL_INDEX = 12;    // index of the post-submit thank-you screen
 
-  // ───────── State (in-memory only) ─────────
+  // ───────── State ─────────
   const state = {
     i: 0,
-    session_id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : ('sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,10)),
+    session_id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,10)),
     started_at: Date.now(),
     started_perf: performance.now(),
     back_count: 0,
     answers: {
-      q1: null, q2: null, q3: null, q4: [], q4_other: '',
+      q1: null,
+      q3: null, q4: [], q4_other: '',
       q5: '',
+      q_trust: 3,
       q6: 4,
       q7: '', q8: '',
       q9: '', q10: '', q11: '', q12: '',
       q13: null, q14: '',
-      q15: '', q16: '', q17: '', q18: '',
-      q19: null, q20_method: null, q20_value: '',
-      q21: ''
+      q8b: '', q15: '', q17: '', q18: '',
+      q21: '',
+      q19: null, q20_whatsapp: '', q20_email: ''
     },
     answer_first: {},
     answer_changed: {},
-    screen_times: {}, // { idx: { enter_perf, leave_perf, dwell_ms } }
+    screen_times: {},
     utm: parseUtm(),
     referrer: document.referrer || '',
     device: detectDevice(),
@@ -1363,7 +1899,6 @@
     sent_final: false
   };
 
-  // ───────── Helpers ─────────
   function parseUtm(){
     const out = {};
     try {
@@ -1391,12 +1926,10 @@
   }
 
   function buildPayload(isComplete){
-    // close current screen timer
     const idx = state.i;
-    const now = performance.now();
     if (state.screen_times[idx]){
       const t = state.screen_times[idx];
-      t.leave_perf = now;
+      t.leave_perf = performance.now();
       t.dwell_ms = Math.round((t.leave_perf - t.enter_perf) + (t.dwell_ms || 0));
     }
     return {
@@ -1419,21 +1952,17 @@
 
   function postPartial(){
     if (APPS_SCRIPT_URL.indexOf('__') === 0) {
-      // placeholder URL — log instead, so the dev still sees the payload during local QA
       try { console.debug('[survey:partial]', buildPayload(false)); } catch(_){}
       return;
     }
     try {
       fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        keepalive: true,
+        method: 'POST', mode: 'no-cors', keepalive: true,
         headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
         body: JSON.stringify({ action: 'partial', ...buildPayload(false) })
       }).catch(()=>{});
     } catch(_){}
   }
-
   function postFinal(){
     if (state.sent_final) return;
     state.sent_final = true;
@@ -1454,8 +1983,6 @@
       }
     } catch(_){}
   }
-
-  // unload safety net — best-effort beacon if the user closes the tab mid-flow
   function flushBeacon(){
     if (state.sent_final) return;
     try {
@@ -1482,33 +2009,40 @@
   const A = state.answers;
   function canAdvance(){
     const i = state.i;
-    if (i === 0) return true;                                                 // landing
-    if (i === 1) return !!A.q1 && !!A.q2 && !!A.q3 && (A.q4.length > 0 || (A.q4_other && A.q4_other.trim()));
-    if (i === 2) return !!(A.q5 && A.q5.trim());                              // q5 non-empty
-    if (i === 3) return true;                                                  // concept reveal
-    if (i === 4) return !!(A.q8 && A.q8.trim());                              // q8 required (q7 optional, q6 always set)
-    if (i === 5) return !!(A.q9.trim() && A.q10.trim() && A.q11.trim() && A.q12.trim());
-    if (i === 6) return !!(A.q13 && A.q14 && A.q14.trim());
-    if (i === 7) return !!(A.q15 && A.q15.trim() && A.q18 && A.q18.trim());
-    if (i === 8) return !!A.q19;                                              // q21 optional, q20 conditional
-    return false;                                                              // 9 (final)
+    switch (i) {
+      case 0: return true;                                              // Plate 01 landing
+      case 1: return !!A.q1;                                            // Plate 02 qualification
+      case 2: return !!A.q3 && (A.q4.length > 0 || (A.q4_other && A.q4_other.trim())); // Plate 03
+      case 3: return !!(A.q5 && A.q5.trim());                            // Plate 04 unanchored
+      case 4: return true;                                              // Plate 05 trust slider (always has a value)
+      case 5: return true;                                              // Plate 06 concept reveal
+      case 6: return !!(A.q8 && A.q8.trim());                            // Plate 07 first reactions
+      case 7: return !!(A.q9.trim() && A.q10.trim() && A.q11.trim() && A.q12.trim()); // Plate 08 VW
+      case 8: return !!(A.q13 && A.q14 && A.q14.trim());                 // Plate 09 model
+      case 9: return !!(A.q8b && A.q8b.trim() && A.q15 && A.q15.trim() && A.q17 && A.q17.trim() && A.q18 && A.q18.trim()); // Plate 10
+      case 10: return true;                                             // Plate 11 wish-asked (optional)
+      case 11: return !!A.q19;                                          // Plate 12 deposit
+      default: return false;
+    }
   }
-
   function nextLabel(){
     const i = state.i;
-    if (i === 0) return 'Begin';
-    if (i === 3) return 'Continue';
-    if (i === 8) return 'Send it';
+    if (i === 0) return 'Begin the study';
+    if (i === 11) return 'Submit';
     return 'Continue';
   }
 
   function render(){
-    // progress
-    const pct = ((state.i + 1) / TOTAL) * 100;
+    const isThanks = state.i === FINAL_INDEX;
+    const pct = isThanks ? 100 : Math.min(((state.i + 1) / TOTAL) * 100, 100);
     bar.style.width = pct + '%';
-    stepCount.innerHTML = '№ ' + pad2(state.i + 1) + ' <em>/</em> ' + pad2(TOTAL);
+    if (isThanks){
+      stepCount.classList.add('is-hidden');
+    } else {
+      stepCount.classList.remove('is-hidden');
+      stepCount.innerHTML = '№ ' + pad2(state.i + 1) + ' <em>/</em> ' + pad2(TOTAL);
+    }
 
-    // screens
     screens.forEach((el, idx) => {
       const active = idx === state.i;
       el.classList.toggle('is-active', active);
@@ -1516,15 +2050,9 @@
       if (active) el.scrollTop = 0;
     });
 
-    // back button
-    backBtn.disabled = state.i === 0 || state.i === 9;
+    backBtn.disabled = state.i === 0 || isThanks;
 
-    // next
-    if (state.i === 0){
-      // Landing has its own inline CTA
-      nextBtn.style.display = 'none';
-      foot.classList.add('final');
-    } else if (state.i === 9){
+    if (state.i === 0 || isThanks){
       nextBtn.style.display = 'none';
       foot.classList.add('final');
     } else {
@@ -1547,12 +2075,11 @@
 
   function go(delta){
     const target = state.i + delta;
-    if (target < 0 || target >= TOTAL) return;
+    if (target < 0 || target > FINAL_INDEX) return;
     if (delta > 0 && !canAdvance()) return;
 
     if (delta < 0) state.back_count += 1;
 
-    // close current timer + leaving anim
     stopScreenTimer(state.i);
     const cur = screens[state.i];
     cur.classList.add('is-leaving');
@@ -1561,11 +2088,9 @@
     state.i = target;
     startScreenTimer(state.i);
 
-    // partial save on every advance (forward only)
     if (delta > 0) postPartial();
 
-    // entering final screen → final submit
-    if (state.i === TOTAL - 1){
+    if (state.i === FINAL_INDEX){
       paintThanks();
       postFinal();
     }
@@ -1574,26 +2099,12 @@
   }
 
   function paintThanks(){
-    // Conditional name display — if user gave an email/whatsapp on Q20, show "Thank you, <first>"
-    const v = (state.answers.q20_value || '').trim();
-    let name = '';
-    if (v){
-      // crude first-token guess: email local part split on . or _, or wa number → no name
-      if (v.indexOf('@') !== -1){
-        const local = v.split('@')[0].replace(/[._]/g,' ').trim();
-        if (local && /^[a-z\s]+$/i.test(local)) name = ', ' + local.split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      }
-    }
-    const tn = document.getElementById('thanksName');
-    if (tn) tn.textContent = name;
-
     const dl = document.getElementById('depositLine');
-    if (dl){
-      const q19 = state.answers.q19;
-      if (q19 === 'yes') dl.textContent = "I'll be in touch about the deposit and the beta. No silent list — only the people who said yes.";
-      else if (q19 === 'maybe') dl.textContent = "I'll send the one-pager that should help you decide.";
-      else dl.textContent = "";
-    }
+    if (!dl) return;
+    const q19 = state.answers.q19;
+    if (q19 === 'yes') dl.textContent = "I'll be in touch about the deposit and the beta. No silent list — only the people who said yes.";
+    else if (q19 === 'maybe') dl.textContent = "I'll send the one-pager that should help you decide.";
+    else dl.textContent = '';
   }
 
   // ───────── Wire begin / back / next ─────────
@@ -1601,7 +2112,6 @@
   backBtn.addEventListener('click', () => go(-1));
   nextBtn.addEventListener('click', () => go(1));
 
-  // Keyboard nav (don't hijack typing)
   document.addEventListener('keydown', (e) => {
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
@@ -1610,7 +2120,7 @@
     else if (e.key === 'Enter' && state.i === 0) { go(1); }
   });
 
-  // ───────── Radio groups (single-select) ─────────
+  // ───────── Radio groups ─────────
   function wireRadioGroup(rootSel, qkey){
     const root = document.querySelector(rootSel);
     if (!root) return;
@@ -1623,15 +2133,6 @@
         if (qkey === 'q19'){
           state.answers.q19 = v;
           updateQ20Reveal();
-        } else if (qkey === 'q20method'){
-          state.answers.q20_method = v;
-          // hint placeholder for the value field
-          const inp = document.getElementById('q20Value');
-          if (inp){
-            if (v === 'whatsapp') inp.placeholder = 'WhatsApp number';
-            else if (v === 'email') inp.placeholder = 'Email';
-            else { inp.placeholder = 'Skip — that\'s fine'; inp.value = ''; state.answers.q20_value = ''; }
-          }
         } else {
           state.answers[qkey] = v;
         }
@@ -1652,13 +2153,11 @@
     });
   }
   wireRadioGroup('[data-group="q1"]', 'q1');
-  wireRadioGroup('[data-group="q2"]', 'q2');
   wireRadioGroup('[data-group="q3"]', 'q3');
   wireRadioGroup('[data-group="q13"]', 'q13');
   wireRadioGroup('[data-group="q19"]', 'q19');
-  wireRadioGroup('[data-group="q20method"]', 'q20method');
 
-  // ───────── Multi-select (Q4) ─────────
+  // ───────── Multi-select Q4 ─────────
   (function wireQ4(){
     const root = document.querySelector('[data-group="q4"]');
     if (!root) return;
@@ -1705,7 +2204,7 @@
     }
   })();
 
-  // ───────── Open text inputs ─────────
+  // ───────── Open text ─────────
   function wireText(id, qkey, opts){
     opts = opts || {};
     const el = document.getElementById(id); if (!el) return;
@@ -1729,18 +2228,19 @@
   }
   wireText('q5', 'q5');
   wireText('q7', 'q7');
-  wireText('q8', 'q8');
+  wireText('q8', 'q8', { hintId: 'q8Hint' });
   wireText('q9', 'q9');
   wireText('q10', 'q10');
   wireText('q11', 'q11');
   wireText('q12', 'q12');
   wireText('q14', 'q14');
+  wireText('q8b', 'q8b');
   wireText('q15', 'q15', { hintId: 'q15Hint', minLen: 30 });
-  wireText('q16', 'q16');
   wireText('q17', 'q17');
   wireText('q18', 'q18', { hintId: 'q18Hint', minLen: 20 });
   wireText('q21', 'q21');
-  wireText('q20Value', 'q20_value');
+  wireText('q20_whatsapp', 'q20_whatsapp');
+  wireText('q20_email', 'q20_email');
 
   // ───────── Q19 conditional reveal ─────────
   function updateQ20Reveal(){
@@ -1751,92 +2251,217 @@
     reveal.classList.toggle('is-on', show);
   }
 
-  // ───────── Q6 slider (1..7) ─────────
-  const scale = document.getElementById('scale');
-  const knob = document.getElementById('knob');
-  const bigNum = document.getElementById('bigNum');
-  const bigLabel = document.getElementById('bigLabel');
-  const SLIDER_LABELS = [
-    "Hate it.",
-    "Strong dislike.",
-    "Skeptical.",
-    "Meh — could go either way.",
-    "Curious.",
-    "Like it.",
-    "Love it."
-  ];
+  // ───────── Slider factory (used for Trust + Gut) ─────────
+  function buildSlider(opts){
+    const scale = document.getElementById(opts.scaleId);
+    const knob = document.getElementById(opts.knobId);
+    const big = document.getElementById(opts.bigId);
+    const label = document.getElementById(opts.labelId);
+    if (!scale || !knob) return null;
+    const min = opts.min || 1;
+    const max = opts.max || 7;
+    const labels = opts.labels;
+    const qkey = opts.qkey;
+    const initialValue = state.answers[qkey];
 
-  (function buildScale(){
-    if (!scale) return;
-    for (let i = 1; i <= 7; i++){
-      const left = ((i - 1) / 6) * 100;
+    for (let i = min; i <= max; i++){
+      const left = ((i - min) / (max - min)) * 100;
       const t = document.createElement('div');
-      t.className = 'tick';
-      t.style.left = left + '%';
+      t.className = 'tick'; t.style.left = left + '%';
       scale.appendChild(t);
       const n = document.createElement('div');
-      n.className = 'num' + (i === state.answers.q6 ? ' is-on' : '');
+      n.className = 'num' + (i === initialValue ? ' is-on' : '');
       n.style.left = left + '%';
       n.textContent = i;
       n.dataset.val = i;
-      n.addEventListener('click', () => setSlider(i));
+      n.addEventListener('click', () => set(i));
       scale.appendChild(n);
     }
-  })();
 
-  function setSlider(v){
-    v = Math.max(1, Math.min(7, Math.round(v)));
-    state.answers.q6 = v;
-    trackChange('q6', v);
-    const left = ((v - 1) / 6) * 100;
-    if (knob) knob.style.left = left + '%';
-    if (bigNum) bigNum.innerHTML = '<i>' + v + '</i>';
-    if (bigLabel) bigLabel.textContent = SLIDER_LABELS[v - 1];
-    if (scale){
+    function set(v){
+      v = Math.max(min, Math.min(max, Math.round(v)));
+      state.answers[qkey] = v;
+      trackChange(qkey, v);
+      const left = ((v - min) / (max - min)) * 100;
+      knob.style.left = left + '%';
+      if (big) big.innerHTML = '<i>' + v + '</i>';
+      if (label) label.textContent = labels[v - min];
       scale.setAttribute('aria-valuenow', v);
       scale.querySelectorAll('.num').forEach(n => {
         n.classList.toggle('is-on', Number(n.dataset.val) === v);
       });
+      render();
     }
-    render();
-  }
 
-  function dragFrom(clientX){
-    const rect = scale.getBoundingClientRect();
-    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
-    const ratio = rect.width === 0 ? 0 : x / rect.width;
-    const v = 1 + ratio * 6;
-    setSlider(v);
-  }
+    function dragFrom(clientX){
+      const rect = scale.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+      const ratio = rect.width === 0 ? 0 : x / rect.width;
+      const v = min + ratio * (max - min);
+      set(v);
+    }
 
-  let dragging = false;
-  function startDrag(e){
-    dragging = true;
-    if (knob.setPointerCapture && e.pointerId !== undefined) knob.setPointerCapture(e.pointerId);
-    const cx = e.touches ? e.touches[0].clientX : e.clientX;
-    dragFrom(cx);
-  }
-  function moveDrag(e){
-    if (!dragging) return;
-    const cx = e.touches ? e.touches[0].clientX : e.clientX;
-    dragFrom(cx);
-  }
-  function endDrag(){ dragging = false; }
+    let dragging = false;
+    function startDrag(e){
+      dragging = true;
+      if (knob.setPointerCapture && e.pointerId !== undefined) knob.setPointerCapture(e.pointerId);
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      dragFrom(cx);
+    }
+    function moveDrag(e){
+      if (!dragging) return;
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      dragFrom(cx);
+    }
+    function endDrag(){ dragging = false; }
 
-  if (knob){
     knob.addEventListener('pointerdown', startDrag);
     scale.addEventListener('pointerdown', startDrag);
     window.addEventListener('pointermove', moveDrag);
     window.addEventListener('pointerup', endDrag);
     window.addEventListener('pointercancel', endDrag);
+
     scale.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowUp'){ e.preventDefault(); e.stopPropagation(); setSlider(state.answers.q6 + 1); }
-      else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown'){ e.preventDefault(); e.stopPropagation(); setSlider(state.answers.q6 - 1); }
-      else if (e.key === 'Home'){ e.preventDefault(); setSlider(1); }
-      else if (e.key === 'End'){ e.preventDefault(); setSlider(7); }
+      const v = state.answers[qkey];
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp'){ e.preventDefault(); e.stopPropagation(); set(v + 1); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown'){ e.preventDefault(); e.stopPropagation(); set(v - 1); }
+      else if (e.key === 'Home'){ e.preventDefault(); set(min); }
+      else if (e.key === 'End'){ e.preventDefault(); set(max); }
     });
-    setSlider(state.answers.q6);
+
+    set(initialValue);
+    return { set };
   }
+
+  buildSlider({
+    scaleId: 'trustScale', knobId: 'trustKnob', bigId: 'trustBig', labelId: 'trustLabel',
+    min: 1, max: 5, qkey: 'q_trust',
+    labels: [
+      "Not a single Reel — I'd never let it post as me.",
+      "Behind-the-scenes only — voiceover, not face.",
+      "Drafts only — I review every frame before it goes out.",
+      "Most of it — I'll spot-check before posting.",
+      "Ship them without me — I trust the system."
+    ]
+  });
+
+  buildSlider({
+    scaleId: 'gutScale', knobId: 'gutKnob', bigId: 'gutBig', labelId: 'gutLabel',
+    min: 1, max: 7, qkey: 'q6',
+    labels: [
+      "Hate it.",
+      "Strong dislike.",
+      "Skeptical.",
+      "Meh — could go either way.",
+      "Curious.",
+      "Like it.",
+      "Love it."
+    ]
+  });
+
+  // ───────── Reels demo player (Plate 06) ─────────
+  (function reelsPlayer(){
+    const phone = document.getElementById('reelsPhone');
+    if (!phone) return;
+    const reels = Array.from(phone.querySelectorAll('.reel'));
+    const dots = Array.from(phone.querySelectorAll('.reel-dots .dot'));
+    const DURATION = 6000;
+
+    let cur = 0;
+    let paused = false;
+    let advanceHandle = null;
+    let likeHandle = null;
+    let segmentStart = 0;
+    let remaining = DURATION;
+    let running = false;
+
+    const likeBase = [12400, 8200, 24100];
+    const likeCurrent = likeBase.slice();
+
+    function fmtCount(n){
+      if (n >= 1000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'K';
+      return String(n);
+    }
+    function updateLikeDisplay(){
+      const active = reels[cur];
+      if (!active) return;
+      const c = active.querySelector('[data-count-target="heart"]');
+      if (c) c.textContent = fmtCount(likeCurrent[cur]);
+    }
+    function startLikeTicker(){
+      clearInterval(likeHandle);
+      likeHandle = setInterval(() => {
+        if (paused || !running) return;
+        if (Math.random() < 0.55) {
+          likeCurrent[cur] += 1;
+          updateLikeDisplay();
+        }
+      }, 1700);
+    }
+    function activate(idx){
+      cur = ((idx % reels.length) + reels.length) % reels.length;
+      reels.forEach((r, i) => r.classList.toggle('is-active', i === cur));
+      dots.forEach((d, i) => d.classList.toggle('is-on', i === cur));
+      updateLikeDisplay();
+      segmentStart = performance.now();
+      remaining = DURATION;
+      scheduleAdvance(DURATION);
+    }
+    function scheduleAdvance(ms){
+      clearTimeout(advanceHandle);
+      if (!running || paused) return;
+      advanceHandle = setTimeout(() => activate(cur + 1), ms);
+    }
+    function pause(){
+      if (paused || !running) return;
+      paused = true;
+      phone.classList.add('is-paused');
+      clearTimeout(advanceHandle);
+      remaining = Math.max(0, DURATION - (performance.now() - segmentStart));
+    }
+    function resume(){
+      if (!paused || !running) return;
+      paused = false;
+      phone.classList.remove('is-paused');
+      segmentStart = performance.now() - (DURATION - remaining);
+      scheduleAdvance(remaining);
+    }
+    function toggle(){
+      if (!running) return;
+      paused ? resume() : pause();
+    }
+    function start(){
+      if (running) return;
+      running = true;
+      paused = false;
+      phone.classList.remove('is-paused');
+      activate(0);
+      startLikeTicker();
+    }
+    function stop(){
+      if (!running) return;
+      running = false;
+      paused = false;
+      clearTimeout(advanceHandle); advanceHandle = null;
+      clearInterval(likeHandle); likeHandle = null;
+      phone.classList.remove('is-paused');
+    }
+
+    phone.addEventListener('click', toggle);
+    phone.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); toggle(); }
+    });
+
+    // Only run while Plate 06 is the active screen
+    const screen06 = document.querySelector('section[data-i="5"]');
+    function check(){
+      if (screen06 && screen06.classList.contains('is-active')) start();
+      else stop();
+    }
+    const mo = new MutationObserver(check);
+    if (screen06) mo.observe(screen06, { attributes: true, attributeFilter: ['class'] });
+    check();
+  })();
 
   // ───────── Init ─────────
   startScreenTimer(0);
