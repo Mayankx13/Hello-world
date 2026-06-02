@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────────────
+# Local dev infra. Why compose and not raw docker run:
+#   - Reproducible across machines.
+#   - One command (`docker-compose up -d`) brings up the whole stack.
+#   - Easy to add services (e.g., a local OpenSearch later) without
+#     touching shell history.
+#
+# Why not Devcontainers / Codespaces: keeping infra explicit and OS-
+# agnostic. A reviewer on a Mac, Windows, or Linux box runs the same
+# two lines. Devcontainers are great but add a VS Code dependency.
+# ─────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+  # Postgres mirrors what Azure SQL will do in prod.
+  # Why Postgres locally instead of SQL Server:
+  #   - 10x faster to start, no licence dance.
+  #   - sqlglot translates Postgres → T-SQL cleanly for the prod move.
+  #   - The data model (Olist) doesn't use any SQL-Server-specific features.
+  postgres:
+    image: postgres:16-alpine
+    container_name: retail-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: retail
+      POSTGRES_PASSWORD: retail
+      POSTGRES_DB: olist
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # init.sql creates the read-only role the NL2SQL executor uses.
+      # Hard constraint, not theatre: never give an LLM write perms.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retail -d olist"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Chroma runs in-process via the chromadb Python package by default,
+  # so we don't need a Chroma server in dev. This service is here only
+  # if you want to mirror the client/server model that some prod paths
+  # use. Leave commented unless needed.
+  #
+  # chroma:
+  #   image: chromadb/chroma:latest
+  #   ports:
+  #     - "8001:8000"
+  #   volumes:
+  #     - chromadata:/chroma/chroma
+
+volumes:
+  pgdata:
+  # chromadata:

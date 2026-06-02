@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────────────
+# Pinned to a single working snapshot. Why pin minor versions and not
+# just majors:
+#   - LangGraph and the OpenAI SDK introduce breaking changes between
+#     minor releases more often than they should.
+#   - A dev who clones this repo 6 months from now should get a working
+#     environment, not a dependency-resolution archaeology project.
+# Run `pip-compile` to refresh; don't hand-edit the floor versions.
+# ─────────────────────────────────────────────────────────────────────
+
+# ── Core LLM + orchestration ─────────────────────────────────────────
+openai>=1.40.0,<2.0.0
+langchain-core>=0.3.0,<0.4.0
+langchain-openai>=0.2.0,<0.3.0
+langgraph>=0.2.0,<0.3.0
+
+# ── Embeddings & vector store ────────────────────────────────────────
+chromadb>=0.5.0,<0.6.0
+sentence-transformers>=3.0.0,<4.0.0  # local reranker
+tiktoken>=0.7.0  # token counting for cost guards
+
+# ── RAG utilities ────────────────────────────────────────────────────
+pypdf>=4.3.0
+python-docx>=1.1.0  # in case we add Word docs later
+
+# ── NL2SQL ───────────────────────────────────────────────────────────
+sqlglot>=25.0.0  # parser + validator + dialect translator
+sqlalchemy>=2.0.0,<3.0.0
+psycopg[binary]>=3.2.0  # postgres driver, async-capable
+
+# ── API + UI ─────────────────────────────────────────────────────────
+fastapi>=0.115.0,<0.116.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.8.0,<3.0.0
+pydantic-settings>=2.4.0  # .env loading with type safety
+streamlit>=1.38.0,<2.0.0
+plotly>=5.20.0  # chart-gen for SQL results
+
+# ── Eval ─────────────────────────────────────────────────────────────
+ragas>=0.2.0  # faithfulness + answer-relevance + context-precision
+datasets>=3.0.0  # ragas dep
+
+# ── Observability ────────────────────────────────────────────────────
+structlog>=24.0.0  # JSON-structured logs
+
+# ── Azure clients (only used in prod path) ───────────────────────────
+azure-search-documents>=11.5.0
+azure-storage-blob>=12.20.0
+azure-identity>=1.17.0  # Managed Identity in prod, env-creds in dev
+
+# ── Dev / tests ──────────────────────────────────────────────────────
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+ruff>=0.6.0
+mypy>=1.10.0

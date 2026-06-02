@@ -1,0 +1,224 @@
+# ─────────────────────────────────────────────────────────────────────
+# Schema catalog for NL2SQL.
+#
+# Why this file exists separately from the SQL CREATE TABLE:
+#   A raw `INFORMATION_SCHEMA` dump tells the LLM column names and types
+#   but not BUSINESS MEANING. The LLM doesn't know "delivered" ≠ "completed"
+#   or that order_status has 8 valid values. This curated catalog roughly
+#   doubles SQL accuracy on the gold set.
+#
+# Why YAML and not JSON:
+#   Hand-readable, hand-editable, no quote-noise on every key. We're going
+#   to hand-edit this every time a new business question reveals a gap.
+#
+# Format contract:
+#   - description: one human sentence about the table.
+#   - join_hints: a string describing the dominant join paths. The LLM
+#     uses these as anchors when composing multi-table queries.
+#   - columns: name → {type, description, sample_values?}.
+#     sample_values is the single highest-leverage field for enum-like
+#     columns (status, payment_type, category).
+#
+# Defence in interview:
+#   "Schema catalogs are where the consulting work happens. The model
+#    doesn't know that customer_state uses 2-letter codes — I do, and
+#    I teach it via this file. This is the bit of NL2SQL that doesn't
+#    automate away."
+# ─────────────────────────────────────────────────────────────────────
+
+tables:
+
+  customers:
+    description: |
+      One row per customer-account-instance. Olist creates a new row
+      every time a unique-customer places an order, so use
+      customer_unique_id to count distinct people.
+    join_hints: |
+      orders.customer_id → customers.customer_id (1:1 per order).
+      customers.customer_unique_id is the real person; customer_id is
+      the per-order surrogate.
+    columns:
+      customer_id:
+        type: text
+        description: Surrogate key, unique per (person, order). Join key to orders.
+      customer_unique_id:
+        type: text
+        description: True person identifier. Use for `count(distinct)` of people.
+      customer_zip_code_prefix:
+        type: integer
+        description: First 5 digits of Brazilian CEP. Join to geolocation for lat/lng.
+      customer_city:
+        type: text
+        description: City name, lower-case, ASCII-folded. Watch for spelling drift.
+      customer_state:
+        type: text
+        description: 2-letter Brazilian state code (e.g., SP, RJ, MG).
+        sample_values: [SP, RJ, MG, RS, PR]
+
+  orders:
+    description: |
+      One row per order. The fact table.
+    join_hints: |
+      orders.customer_id → customers.customer_id
+      orders.order_id → order_items, order_payments, order_reviews (1:N each)
+    columns:
+      order_id:
+        type: text
+        description: Primary key. Foreign key in 3 child tables.
+      customer_id:
+        type: text
+        description: FK to customers.
+      order_status:
+        type: text
+        description: Lifecycle state of the order.
+        sample_values:
+          [delivered, shipped, canceled, unavailable, invoiced, processing, created, approved]
+      order_purchase_timestamp:
+        type: timestamp
+        description: When the customer placed the order. Use for time-series.
+      order_approved_at:
+        type: timestamp
+        description: When payment was approved. Null if not yet approved.
+      order_delivered_carrier_date:
+        type: timestamp
+        description: When the courier received the package.
+      order_delivered_customer_date:
+        type: timestamp
+        description: When the customer received the package. Null if not yet delivered.
+      order_estimated_delivery_date:
+        type: timestamp
+        description: Promised delivery date. Compare to order_delivered_customer_date for SLA breaches.
+
+  order_items:
+    description: |
+      One row per line-item per order. Carries unit price and freight.
+    join_hints: |
+      order_items.order_id → orders.order_id (N:1)
+      order_items.product_id → products.product_id (N:1)
+      order_items.seller_id → sellers.seller_id (N:1)
+    columns:
+      order_id:
+        type: text
+        description: FK to orders.
+      order_item_id:
+        type: integer
+        description: Line number within the order, starts at 1.
+      product_id:
+        type: text
+        description: FK to products.
+      seller_id:
+        type: text
+        description: FK to sellers.
+      shipping_limit_date:
+        type: timestamp
+        description: Deadline by which seller must ship.
+      price:
+        type: numeric
+        description: Item unit price in BRL. Aggregate for revenue.
+      freight_value:
+        type: numeric
+        description: Shipping fee charged to customer in BRL.
+
+  products:
+    description: |
+      Product catalog. Note: category names are in Portuguese — join to
+      product_category_translation for English.
+    columns:
+      product_id:
+        type: text
+        description: Primary key.
+      product_category_name:
+        type: text
+        description: Category in Portuguese. Use the translation table for English.
+        sample_values: [beleza_saude, cama_mesa_banho, esporte_lazer, informatica_acessorios]
+      product_weight_g:
+        type: integer
+        description: Weight in grams.
+      product_length_cm:
+        type: integer
+      product_height_cm:
+        type: integer
+      product_width_cm:
+        type: integer
+
+  product_category_translation:
+    description: PT → EN category name lookup.
+    columns:
+      product_category_name:
+        type: text
+      product_category_name_english:
+        type: text
+
+  sellers:
+    description: One row per seller (marketplace, not first-party).
+    columns:
+      seller_id:
+        type: text
+        description: Primary key.
+      seller_zip_code_prefix:
+        type: integer
+      seller_city:
+        type: text
+      seller_state:
+        type: text
+        sample_values: [SP, RJ, MG, PR, RS]
+
+  order_payments:
+    description: |
+      One or more rows per order — voucher + credit card splits are
+      modeled here, so sum(payment_value) per order, don't dedupe.
+    columns:
+      order_id:
+        type: text
+        description: FK to orders.
+      payment_sequential:
+        type: integer
+        description: Split number within the order.
+      payment_type:
+        type: text
+        sample_values: [credit_card, boleto, voucher, debit_card]
+      payment_installments:
+        type: integer
+        description: Number of monthly installments. Credit-card culture in Brazil.
+      payment_value:
+        type: numeric
+        description: BRL paid in this split. SUM across rows per order.
+
+  order_reviews:
+    description: |
+      Customer-submitted review per order. Free-text comment_message is
+      the RAG-able layer if you want to do review-summary use cases.
+    columns:
+      review_id:
+        type: text
+      order_id:
+        type: text
+      review_score:
+        type: integer
+        description: 1-5 star rating.
+      review_comment_title:
+        type: text
+        description: Often null.
+      review_comment_message:
+        type: text
+        description: Free-text review body. Often null.
+      review_creation_date:
+        type: timestamp
+      review_answer_timestamp:
+        type: timestamp
+
+  geolocation:
+    description: |
+      Brazilian ZIP-prefix → lat/lng lookup. Multiple rows per prefix
+      (granularity is below the prefix level).
+    columns:
+      geolocation_zip_code_prefix:
+        type: integer
+      geolocation_lat:
+        type: numeric
+      geolocation_lng:
+        type: numeric
+      geolocation_city:
+        type: text
+      geolocation_state:
+        type: text

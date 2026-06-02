@@ -1,0 +1,92 @@
+# ─────────────────────────────────────────────────────────────────────
+# Gold set — the hand-written, ground-truth questions the system is
+# graded against on every change.
+#
+# Why this matters more than the LLM code itself:
+#   - Without a gold set, you're tuning to vibes.
+#   - With it, every prompt change becomes a measurable +/- delta.
+#   - The eval CSV is the FIRST thing you show in an interview. Bots
+#     are common; bots with metrics are senior.
+#
+# Format:
+#   id: stable identifier (don't renumber — log lines reference these)
+#   category: sql_only | rag_only | fusion
+#   question: the user's natural-language question
+#   expected_sql: for sql_only/fusion, the canonical SQL (compared by
+#     result-set equivalence, NOT string match)
+#   expected_answer_contains: substrings the final answer must contain
+#   expected_citations: doc_id values that must appear in citations
+#   notes: human notes — failure mode, why this is hard, etc.
+#
+# Status: 5 seed examples below. Target = 50 by end of week 4 (20 SQL,
+# 20 RAG, 10 fusion).
+# ─────────────────────────────────────────────────────────────────────
+
+questions:
+
+  - id: q001
+    category: sql_only
+    question: "How many orders were delivered to customers in São Paulo state in 2018?"
+    expected_sql: |
+      SELECT COUNT(*) FROM orders o
+      JOIN customers c ON o.customer_id = c.customer_id
+      WHERE c.customer_state = 'SP'
+        AND o.order_status = 'delivered'
+        AND EXTRACT(YEAR FROM o.order_delivered_customer_date) = 2018
+    expected_answer_contains: ["São Paulo", "2018"]
+    notes: |
+      Tests: state-code knowledge (SP), order_status='delivered',
+      date filter on the right column (delivered, not purchased).
+
+  - id: q002
+    category: sql_only
+    question: "What's the average order value by payment type, sorted high to low?"
+    expected_sql: |
+      SELECT payment_type, AVG(payment_value) AS avg_value
+      FROM order_payments
+      GROUP BY payment_type
+      ORDER BY avg_value DESC
+    expected_answer_contains: ["credit_card", "boleto", "voucher"]
+    notes: |
+      Tests: enum awareness from schema_catalog sample_values, GROUP BY.
+
+  - id: q003
+    category: rag_only
+    question: "What is our return policy for electronics?"
+    expected_answer_contains: ["return", "electronics"]
+    expected_citations: ["policy-returns-electronics-v2.pdf"]
+    notes: |
+      Tests: vector + BM25 hybrid (the literal "return policy" is a
+      strong BM25 anchor), correct doc retrieval.
+
+  - id: q004
+    category: rag_only
+    question: "How does a new seller register on the marketplace?"
+    expected_answer_contains: ["registration", "seller"]
+    expected_citations: ["seller-onboarding-guide-v1.pdf"]
+    notes: |
+      Tests: paraphrase handling (question says "register", doc says
+      "onboarding"). Vector should win here over BM25.
+
+  - id: q005
+    category: fusion
+    question: "Returns in electronics have spiked — what's the trend, and is there a policy change that explains it?"
+    expected_sql: |
+      SELECT DATE_TRUNC('month', o.order_purchase_timestamp) AS month,
+             COUNT(*) AS returns
+      FROM orders o
+      JOIN order_items oi ON o.order_id = oi.order_id
+      JOIN products p ON oi.product_id = p.product_id
+      JOIN product_category_translation pct
+           ON p.product_category_name = pct.product_category_name
+      WHERE pct.product_category_name_english = 'electronics'
+        AND o.order_status = 'canceled'
+      GROUP BY 1
+      ORDER BY 1
+    expected_answer_contains: ["trend", "policy"]
+    expected_citations: ["policy-returns-electronics-v2.pdf"]
+    notes: |
+      The hard one. Tests: fusion path activates, SQL trend pulled
+      correctly, RAG retrieves the policy doc, final answer ties them
+      together. This is the single most important gold question — if
+      this works, the project's central thesis works.
