@@ -1,0 +1,16 @@
+name = "liqo-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+# D1 binding — create with `wrangler d1 create liqo`, then paste the id here
+# (and into worker-sync/wrangler.toml — both workers bind the SAME database).
+[[d1_databases]]
+binding = "DB"
+database_name = "liqo"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[vars]
+ALLOWED_ORIGIN = "*"
+# ADMIN_TOKEN is a secret, not a var:
+#   wrangler secret put ADMIN_TOKEN
