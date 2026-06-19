@@ -1,12 +1,19 @@
 # dependencies
 /node_modules
+**/node_modules
 
-# next.js
+# next.js (legacy AiEZ app)
 /.next/
 /out/
 
-# production
+# production / build
 /build
+**/dist
+web/dev-dist
+
+# cloudflare workers
+**/.wrangler
+.dev.vars
 
 # misc
 .DS_Store
@@ -27,3 +34,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test / coverage
+/coverage
+
+# python
+__pycache__/
+*.pyc

@@ -1,0 +1,52 @@
+name: Demo PWA on GitHub Pages
+
+# Publishes the OFFLINE demo (no Cloudflare, no secrets) to GitHub Pages so the
+# app has a live, shareable URL: https://<owner>.github.io/Hello-world/
+# The PWA runs the same pure engine client-side against the bundled sample.
+# (The full pilot with live inventory still deploys to Cloudflare via deploy.yml.)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps
+        run: npm install --no-audit --no-fund
+      - name: Build offline demo (served under /Hello-world/)
+        working-directory: web
+        env:
+          BASE_PATH: /Hello-world/
+        run: npm run build
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
