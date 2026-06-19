@@ -86,6 +86,11 @@ Open the dev URL on a phone (same network) to try the install / kiosk behaviour.
 
 ## Deploy (Cloudflare)
 
+> **Want zero local setup?** [`DEPLOY.md`](./DEPLOY.md) wires GitHub Actions to
+> deploy the Workers, D1 and PWA to Cloudflare on every push — you only add a
+> few secrets in the GitHub/Cloudflare dashboards. The steps below are the
+> manual/`wrangler` equivalent.
+
 Prerequisites: a Cloudflare account and `npm i -g wrangler` (or use `npx`).
 
 ### 1. Create D1 and apply the schema

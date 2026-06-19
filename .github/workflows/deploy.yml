@@ -1,0 +1,109 @@
+name: Deploy LIQO to Cloudflare
+
+# Deploys EVERYTHING to Cloudflare from CI — no local machine needed:
+#   1. apply D1 schema   2. deploy API Worker   3. deploy Sync Worker (hourly cron)
+#   4. seed inventory     5. build + deploy the PWA to Cloudflare Pages
+#
+# Runs on push once you set the repo variable DEPLOY_ENABLED=true, or any time
+# via the "Run workflow" button (Actions tab). See DEPLOY.md for the one-time
+# secrets/variables you must add first.
+
+on:
+  push:
+    branches: [claude/wizardly-turing-48zn7z, main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: liqo-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # Don't run on push until you opt in (so the repo isn't red before setup).
+    if: ${{ vars.DEPLOY_ENABLED == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+      D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+      INVENTORY_URL: ${{ vars.INVENTORY_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Preflight — required secrets present
+        run: |
+          missing=0
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID D1_DATABASE_ID ADMIN_TOKEN; do
+            if [ -z "${!v}" ]; then echo "::error::Missing $v (see DEPLOY.md)"; missing=1; fi
+          done
+          [ "$missing" = "0" ] || exit 1
+
+      - name: Install workspace deps
+        run: npm install --no-audit --no-fund
+
+      - name: Engine tests (gate the deploy)
+        run: npm test
+
+      - name: Inject D1 database id into wrangler configs
+        run: |
+          sed -i "s/REPLACE_WITH_D1_DATABASE_ID/${D1_DATABASE_ID}/" \
+            worker-api/wrangler.toml worker-sync/wrangler.toml
+          # Optional: point the Sync Worker at the real BUSY feed (else bundled seed).
+          if [ -n "${INVENTORY_URL}" ]; then
+            printf '\nINVENTORY_URL = "%s"\n' "${INVENTORY_URL}" >> worker-sync/wrangler.toml
+          fi
+
+      - name: Apply D1 schema (idempotent)
+        working-directory: worker-api
+        run: npx wrangler d1 execute liqo --remote --file=../schema.sql --yes
+
+      - name: Deploy API Worker
+        working-directory: worker-api
+        run: |
+          npx wrangler deploy | tee /tmp/api.log
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/api.log | head -1)
+          echo "API_URL=$url" >> "$GITHUB_ENV"
+          printf '%s' "$ADMIN_TOKEN" | npx wrangler secret put ADMIN_TOKEN
+
+      - name: Deploy Sync Worker (hourly cron)
+        working-directory: worker-sync
+        run: |
+          npx wrangler deploy | tee /tmp/sync.log
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/sync.log | head -1)
+          echo "SYNC_URL=$url" >> "$GITHUB_ENV"
+          printf '%s' "$ADMIN_TOKEN" | npx wrangler secret put ADMIN_TOKEN
+
+      - name: Seed inventory snapshot (first run)
+        run: |
+          echo "Seeding via ${SYNC_URL}/sync"
+          curl -fsS -X POST "${SYNC_URL}/sync" \
+            -H "authorization: Bearer ${ADMIN_TOKEN}" || echo "::warning::seed call failed (cron will retry hourly)"
+
+      - name: Build PWA (pointed at the deployed API)
+        working-directory: web
+        run: |
+          echo "VITE_API_BASE=${API_URL}" > .env.production
+          npm run build
+
+      - name: Deploy PWA to Cloudflare Pages
+        working-directory: web
+        run: |
+          npx wrangler pages project create liqo --production-branch=production 2>/dev/null || true
+          npx wrangler pages deploy dist --project-name=liqo --branch=production --commit-dirty=true
+
+      - name: Summary
+        run: |
+          {
+            echo "### LIQO deployed 🚀"
+            echo "- API:  ${API_URL}"
+            echo "- Sync: ${SYNC_URL}  (hourly cron)"
+            echo "- PWA:  https://liqo.pages.dev"
+          } >> "$GITHUB_STEP_SUMMARY"
