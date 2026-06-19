@@ -7,7 +7,7 @@ name: Demo PWA on GitHub Pages
 
 on:
   push:
-    branches: [claude/wizardly-turing-48zn7z]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
