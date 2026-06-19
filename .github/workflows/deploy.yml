@@ -31,6 +31,8 @@ jobs:
       ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
       D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
       INVENTORY_URL: ${{ vars.INVENTORY_URL }}
+      # Optional: override if "liqo" is already taken on pages.dev (it's global).
+      PAGES_PROJECT: ${{ vars.PAGES_PROJECT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -96,14 +98,16 @@ jobs:
       - name: Deploy PWA to Cloudflare Pages
         working-directory: web
         run: |
-          npx wrangler pages project create liqo --production-branch=production 2>/dev/null || true
-          npx wrangler pages deploy dist --project-name=liqo --branch=production --commit-dirty=true
+          project="${PAGES_PROJECT:-liqo}"
+          echo "PAGES_PROJECT_NAME=$project" >> "$GITHUB_ENV"
+          npx wrangler pages project create "$project" --production-branch=production 2>/dev/null || true
+          npx wrangler pages deploy dist --project-name="$project" --branch=production --commit-dirty=true
 
       - name: Summary
         run: |
           {
             echo "### LIQO deployed 🚀"
+            echo "- PWA:  https://${PAGES_PROJECT_NAME}.pages.dev  ← open this"
             echo "- API:  ${API_URL}"
             echo "- Sync: ${SYNC_URL}  (hourly cron)"
-            echo "- PWA:  https://liqo.pages.dev"
           } >> "$GITHUB_STEP_SUMMARY"
