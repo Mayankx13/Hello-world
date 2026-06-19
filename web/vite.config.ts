@@ -6,7 +6,13 @@ import { fileURLToPath, URL } from "node:url";
 // LIQO Sales Assistant PWA — tablet-first, installable on Android + iOS,
 // full-screen kiosk, offline app-shell. The pure engine is aliased so the
 // app can run recommendations client-side in offline/demo mode.
+//
+// `base` is configurable so the same build serves from a domain root
+// (Cloudflare Pages, default "/") or a subpath (GitHub Pages "/Hello-world/").
+const base = process.env.BASE_PATH || "/";
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -16,9 +22,9 @@ export default defineConfig({
         name: "LIQO Sales Assistant",
         short_name: "LIQO",
         description: "In-store product recommendations — Good, Better, Best.",
-        id: "/",
-        start_url: "/",
-        scope: "/",
+        id: base,
+        start_url: base,
+        scope: base,
         display: "fullscreen",
         display_override: ["fullscreen", "standalone", "minimal-ui"],
         orientation: "any",
@@ -33,7 +39,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
-        navigateFallback: "/index.html",
+        navigateFallback: `${base}index.html`,
         runtimeCaching: [
           {
             // App-shell data: stale-while-revalidate so it works offline.

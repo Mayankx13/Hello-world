@@ -53,6 +53,11 @@ export interface SessionLog {
 const API_BASE: string | undefined = import.meta.env.VITE_API_BASE;
 export const IS_REMOTE = !!API_BASE;
 
+// App-shell data is served relative to the deploy base so the app works at a
+// domain root (Cloudflare Pages) AND under a subpath (e.g. GitHub Pages
+// /Hello-world/). BASE_URL always has a trailing slash.
+const BASE = import.meta.env.BASE_URL;
+
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(path, { headers: { accept: "application/json" } });
   if (!res.ok) throw new Error(`${path} -> ${res.status}`);
@@ -66,24 +71,24 @@ let _stores: Promise<Store[]> | null = null;
 let _inventory: Promise<InventoryItem[]> | null = null;
 
 export function getConfig(): Promise<EngineConfig> {
-  return (_config ??= getJSON<EngineConfig>("/config.json"));
+  return (_config ??= getJSON<EngineConfig>(`${BASE}config.json`));
 }
 
 export function getQuestionnaire(): Promise<Questionnaire> {
-  return (_questionnaire ??= getJSON<Questionnaire>("/questionnaire.json"));
+  return (_questionnaire ??= getJSON<Questionnaire>(`${BASE}questionnaire.json`));
 }
 
 export function getStores(): Promise<Store[]> {
   if (_stores) return _stores;
   _stores = IS_REMOTE
     ? getJSON<{ stores: Store[] }>(`${API_BASE}/stores`).then((d) => d.stores)
-    : getJSON<{ stores: Store[] }>("/stores.json").then((d) => d.stores);
+    : getJSON<{ stores: Store[] }>(`${BASE}stores.json`).then((d) => d.stores);
   return _stores;
 }
 
 function getInventory(): Promise<InventoryItem[]> {
   if (_inventory) return _inventory;
-  _inventory = Promise.all([getJSON<RawInventoryRow[]>("/sample-inventory.json"), getConfig()]).then(
+  _inventory = Promise.all([getJSON<RawInventoryRow[]>(`${BASE}sample-inventory.json`), getConfig()]).then(
     ([raw, cfg]) => transformInventory(raw, cfg, new Date().toISOString()),
   );
   return _inventory;
