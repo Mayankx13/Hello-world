@@ -41,3 +41,6 @@ next-env.d.ts
 # python
 __pycache__/
 *.pyc
+
+# local connector config (secrets)
+tools/liqo-busy-connector/config.json

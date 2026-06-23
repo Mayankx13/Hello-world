@@ -1,0 +1,17 @@
+{
+  "name": "liqo-busy-connector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reads inventory from the BUSY / Microsoft SQL Server DB on the store LAN and pushes it to the LIQO Sync Worker. Runs on the Windows machine (or any box on the same network).",
+  "engines": { "node": ">=18" },
+  "bin": { "liqo-connector": "index.mjs" },
+  "scripts": {
+    "start": "node index.mjs",
+    "discover": "node index.mjs --discover",
+    "dry-run": "node index.mjs --dry-run"
+  },
+  "dependencies": {
+    "mssql": "^11.0.1"
+  }
+}
