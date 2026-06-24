@@ -1,0 +1,5 @@
+# Cloudflare Pages redirects for the amaflip.in marketing site.
+# Convenience: send /app and /login straight to the SaaS subdomain.
+/app    https://app.amaflip.in   302
+/app/*  https://app.amaflip.in/:splat  302
+/login  https://app.amaflip.in   302
