@@ -9,7 +9,7 @@
 import { transformInventory, type RawInventoryRow } from "../../src/engine/mapper";
 import { replaceInventory, type D1Like } from "../../src/shared/d1";
 import { loadConfig, saveConfig, saveQuestionnaire, DEFAULT_CONFIG, DEFAULT_QUESTIONNAIRE } from "../../src/shared/config";
-import { getRawInventory, type SyncEnv } from "./source";
+import { getRawInventory, sourceKind, type SyncEnv } from "./source";
 
 export interface Env extends SyncEnv {
   DB: D1Like;
@@ -60,7 +60,7 @@ export default {
         .prepare("SELECT COUNT(*) AS n, MAX(last_synced_at) AS at FROM inventory")
         .first<{ n: number; at: string }>()
         .catch(() => null);
-      return json({ ok: true, service: "liqo-sync", rows: last?.n ?? 0, lastSyncedAt: last?.at ?? null });
+      return json({ ok: true, service: "liqo-sync", source: sourceKind(env), rows: last?.n ?? 0, lastSyncedAt: last?.at ?? null });
     }
     // Pull from the configured source (bundled seed or INVENTORY_URL).
     if (url.pathname === "/sync" && req.method === "POST") {

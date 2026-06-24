@@ -13,13 +13,15 @@
  * (Seam for live reads later: Cloudflare Hyperdrive in front of getRawInventory.)
  */
 import { recommend } from "../../src/engine/recommend";
-import type { Category, EngineConfig, RecommendRequest } from "../../src/engine/types";
+import type { Category, EngineConfig, RecommendRequest, RecommendResult, RecommendationCard } from "../../src/engine/types";
+import { computeLeaderboard, isBill, type SessionRecord, type RosterEntry, type LeaderboardRow } from "../../src/engine/points";
 import { loadInventory, type D1Like } from "../../src/shared/d1";
 import { loadConfig, saveConfig, loadQuestionnaire, saveQuestionnaire } from "../../src/shared/config";
+import { authorRationales, llmEnabled, type LlmEnv, type ExplainCard } from "./llm";
 import usersFile from "../../data/users.json";
 import leaderboardFile from "../../data/leaderboard.json";
 
-export interface Env {
+export interface Env extends LlmEnv {
   DB: D1Like;
   ADMIN_TOKEN?: string;
   ALLOWED_ORIGIN?: string;
@@ -36,7 +38,16 @@ interface DemoUser {
   passHash?: string;
 }
 const USERS = usersFile as { demoPassword: string; users: DemoUser[] };
-const LEADERBOARD = leaderboardFile as { rows: Array<{ storeId: string }> };
+const LEADERBOARD = leaderboardFile as { rows: LeaderboardRow[] };
+
+/** Salesperson roster (id -> name + home store) for leaderboard rendering. */
+function salesRoster(): Record<string, RosterEntry> {
+  const roster: Record<string, RosterEntry> = {};
+  for (const u of USERS.users) {
+    if (u.role === "salesperson" && u.storeId) roster[u.id] = { name: u.name, storeId: u.storeId };
+  }
+  return roster;
+}
 
 const CATEGORIES: Category[] = ["ac", "tv", "fridge", "wm"];
 
@@ -56,6 +67,7 @@ export default {
       if (pathname === "/leaderboard" && method === "GET") return handleLeaderboard(env, url);
       if (pathname === "/inventory" && method === "GET") return handleInventory(env, url);
       if (pathname === "/recommend" && method === "POST") return handleRecommend(req, env);
+      if (pathname === "/explain" && method === "POST") return handleExplain(req, env);
       if (pathname === "/stores" && method === "GET") return handleStores(env);
       if (pathname === "/catalog/health" && method === "GET") return handleCatalogHealth(env);
       if (pathname === "/session" && method === "POST") return handleSession(req, env);
@@ -87,7 +99,47 @@ async function handleRecommend(req: Request, env: Env): Promise<Response> {
     loadInventory(env.DB, { storeId: reqBody.storeId, category: reqBody.category }),
   ]);
   const result = recommend(reqBody, inventory, cfg);
+  await enrichRationales(env, result, reqBody);
   return json(env, result);
+}
+
+/**
+ * Phase 5: replace each card's deterministic fitLine with an LLM-authored one
+ * (Haiku 4.5), built ONLY from the engine's matched fit reasons. Ranking is
+ * untouched. No-op (and never throws) when the LLM is disabled or fails.
+ */
+async function enrichRationales(env: Env, result: RecommendResult, req: RecommendRequest): Promise<void> {
+  if (!llmEnabled(env)) return;
+  const tiers = ["good", "better", "best", "stretch"] as const;
+  const cards = tiers.map((tier) => result[tier]).filter((c): c is RecommendationCard => Boolean(c));
+  if (cards.length === 0) return;
+  const lines = await authorRationales(env, {
+    lang: req.lang === "hi" ? "hi" : "en",
+    answers: req.answers ?? [],
+    cards: cards.map((c) => toExplainCard(c, req.category)),
+  });
+  for (const c of cards) if (lines[c.tier]) c.fitLine = lines[c.tier];
+}
+
+function toExplainCard(c: RecommendationCard, category: Category): ExplainCard {
+  return { tier: c.tier, brand: c.brand, model: c.model, category, price: c.price, fitReasons: c.fitReasons, fitLine: c.fitLine };
+}
+
+// ---------------------------------------------------------------------------
+// POST /explain — author rationales for a set of cards (Phase 5 / tooling).
+// Returns { rationales: { tier: line }, model, enabled }.
+// ---------------------------------------------------------------------------
+async function handleExplain(req: Request, env: Env): Promise<Response> {
+  const body = (await req.json().catch(() => null)) as { cards?: ExplainCard[]; answers?: string[]; lang?: string } | null;
+  if (!body || !Array.isArray(body.cards)) {
+    return json(env, { error: "bad_request", message: "cards[] required" }, 400);
+  }
+  const rationales = await authorRationales(env, {
+    cards: body.cards,
+    answers: body.answers ?? [],
+    lang: body.lang === "hi" ? "hi" : "en",
+  });
+  return json(env, { rationales, model: env.LLM_MODEL || "claude-haiku-4-5", enabled: llmEnabled(env) });
 }
 
 function validateRecommend(b: Partial<RecommendRequest>): string | null {
@@ -117,12 +169,25 @@ async function handleLogin(req: Request, env: Env): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
-// GET /leaderboard — gamification feed.
-// TODO(phase3): aggregate live from the sessions table per salesperson.
+// GET /leaderboard — gamification feed, aggregated live from logged sessions.
+// Points are derived purely from journey outcomes (see engine/points.ts), so
+// the board is explainable. Falls back to the seeded demo board until real
+// outcomes have been logged.
 // ---------------------------------------------------------------------------
 async function handleLeaderboard(env: Env, url: URL): Promise<Response> {
   const storeId = url.searchParams.get("storeId");
-  let rows = LEADERBOARD.rows;
+  const { results } = await env.DB
+    .prepare(
+      `SELECT user_id AS userId, store_id AS storeId, outcome,
+              items_per_bill AS itemsPerBill, total, COALESCE(ts, created_at) AS ts
+       FROM sessions WHERE user_id IS NOT NULL AND outcome IS NOT NULL`,
+    )
+    .all<SessionRecord>()
+    .catch(() => ({ results: [] as SessionRecord[] }));
+  const hasRealBills = results.some((r) => isBill(r.outcome));
+  let rows = hasRealBills
+    ? computeLeaderboard(results, salesRoster(), new Date().toISOString())
+    : LEADERBOARD.rows;
   if (storeId) rows = rows.filter((r) => r.storeId === storeId);
   return json(env, { rows });
 }
@@ -188,20 +253,28 @@ async function handleCatalogHealth(env: Env): Promise<Response> {
     .all<{ category: string; items: number; units: number; lastSyncedAt: string }>();
   const byStore = await env.DB
     .prepare(
-      `SELECT store_id AS storeId, category, COUNT(*) AS items
+      `SELECT store_id AS storeId, category, COUNT(*) AS items, SUM(stock_qty) AS units
        FROM inventory WHERE channel = 'retail' GROUP BY store_id, category`,
     )
-    .all<{ storeId: string; category: string; items: number }>();
+    .all<{ storeId: string; category: string; items: number; units: number }>();
+  const ageing = await env.DB
+    .prepare(
+      `SELECT ageing_slab AS slab, ageing_rank AS rank, COUNT(*) AS items, SUM(stock_qty) AS units
+       FROM inventory WHERE channel = 'retail' GROUP BY ageing_rank, ageing_slab ORDER BY ageing_rank`,
+    )
+    .all<{ slab: string; rank: number; items: number; units: number }>();
   const total = await env.DB
-    .prepare("SELECT COUNT(*) AS n, MAX(last_synced_at) AS lastSyncedAt FROM inventory")
-    .first<{ n: number; lastSyncedAt: string }>();
+    .prepare("SELECT COUNT(*) AS n, SUM(stock_qty) AS units, MAX(last_synced_at) AS lastSyncedAt FROM inventory WHERE channel = 'retail'")
+    .first<{ n: number; units: number; lastSyncedAt: string }>();
 
   return json(env, {
     ok: true,
     totalRows: total?.n ?? 0,
+    totalUnits: total?.units ?? 0,
     lastSyncedAt: total?.lastSyncedAt ?? null,
     perCategory: byCat.results,
     perStore: byStore.results,
+    ageing: ageing.results,
   });
 }
 
@@ -214,12 +287,13 @@ async function handleSession(req: Request, env: Env): Promise<Response> {
   await env.DB
     .prepare(
       `INSERT OR REPLACE INTO sessions
-       (session_id, store_id, category, lang, answers, budget_band, stretch, exchange,
+       (session_id, user_id, store_id, category, lang, answers, budget_band, stretch, exchange,
         shown_cards, chosen, attach, outcome, total, items_per_bill, ts, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     )
     .bind(
       sessionId,
+      str(s.userId),
       str(s.storeId),
       str(s.category),
       str(s.lang),

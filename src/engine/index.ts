@@ -3,6 +3,14 @@ export * from "./types";
 export * from "./tags";
 export { recommend } from "./recommend";
 export {
+  computeLeaderboard,
+  mergeLeaderboard,
+  pointsForSession,
+  isBill,
+  type SessionRecord,
+  type RosterEntry,
+} from "./points";
+export {
   transformInventory,
   transformRow,
   deriveTags,

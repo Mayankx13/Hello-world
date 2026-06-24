@@ -10,6 +10,7 @@ import SalesAssistant from "../screens/SalesAssistant";
 import InventoryBrowser from "../screens/InventoryBrowser";
 import Leaderboard from "../screens/Leaderboard";
 import EngineConfigScreen from "../screens/EngineConfig";
+import CommandCentre from "../screens/CommandCentre";
 import Placeholder from "../screens/Placeholder";
 
 type Section = "sales" | "inventory" | "command" | "leaderboard" | "config" | "data";
@@ -65,8 +66,7 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
       body = <Leaderboard lang={lang} user={user!} />;
       break;
     case "command":
-      body = <Placeholder lang={lang} title={t(UI.nav_command, lang)} icon="command"
-        desc="North-star items-per-bill, store comparison, dead-stock and inventory health across all stores — arriving next." />;
+      body = <CommandCentre lang={lang} />;
       break;
     case "config":
       body = <EngineConfigScreen lang={lang} />;

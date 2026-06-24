@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS config (
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS sessions (
   session_id    TEXT PRIMARY KEY,
+  user_id       TEXT,                        -- salesperson who ran the journey (gamification)
   store_id      TEXT,
   category      TEXT,
   lang          TEXT,
@@ -78,10 +79,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   attach        TEXT,                        -- JSON array of attach ids
   outcome       TEXT,                        -- bought-recommended | bought-different | still-thinking
   total         INTEGER,
-  items_per_bill INTEGER,
+  items_per_bill REAL,                       -- e.g. 1.4 (fractional — REAL affinity)
   ts            TEXT,                        -- client timestamp
   created_at    TEXT NOT NULL                -- server insert time
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_store ON sessions (store_id, category);
 CREATE INDEX IF NOT EXISTS idx_sessions_time  ON sessions (created_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_user  ON sessions (user_id, created_at);
+
+-- Migration for an existing DB (run once; harmless to skip on a fresh schema):
+--   ALTER TABLE sessions ADD COLUMN user_id TEXT;

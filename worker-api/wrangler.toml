@@ -1,6 +1,8 @@
 name = "liqo-api"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
+# nodejs_compat lets the official @anthropic-ai/sdk run on the Workers runtime.
+compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 # D1 binding — create with `wrangler d1 create liqo`, then paste the id here
@@ -12,5 +14,13 @@ database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
 [vars]
 ALLOWED_ORIGIN = "*"
-# ADMIN_TOKEN is a secret, not a var:
+# Phase 5 — LLM rationale (deterministic engine still ranks; LLM only writes the
+# "why this fits you" line). Off unless BOTH are set:
+#   LLM_RATIONALE = "on"  (this var)  and  ANTHROPIC_API_KEY (a secret)
+LLM_RATIONALE = "off"
+# LLM_MODEL = "claude-haiku-4-5"   # optional override
+#
+# Secrets (set with wrangler secret put, never commit):
 #   wrangler secret put ADMIN_TOKEN
+#   wrangler secret put AUTH_SECRET
+#   wrangler secret put ANTHROPIC_API_KEY
