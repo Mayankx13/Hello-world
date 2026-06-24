@@ -26,8 +26,10 @@ GitHub repo ──push──▶ GitHub Actions ──▶ Cloudflare
    - Account · **Cloudflare Pages** · Edit
    - Account · **Account Settings** · Read
    Copy the token (shown once).
-4. Create the **D1 database** — Dashboard → *Storage & Databases* → *D1* →
-   *Create database*, name it exactly **`liqo`**. Copy its **Database ID**.
+4. *(Optional)* Create the **D1 database** — Dashboard → *Storage & Databases* →
+   *D1* → *Create database*, name it exactly **`liqo`**, copy its **Database ID**.
+   You can **skip this** — the deploy auto-creates a `liqo` database and uses it
+   when `D1_DATABASE_ID` is left unset.
 
 ### 2. GitHub — add the credentials to the repo
 Repo → *Settings* → *Secrets and variables* → *Actions*:
@@ -42,8 +44,8 @@ Repo → *Settings* → *Secrets and variables* → *Actions*:
 **Variables** (plain):
 | Name | Value |
 | --- | --- |
-| `D1_DATABASE_ID` | the Database ID from step 1.4 |
 | `DEPLOY_ENABLED` | `true` |
+| `D1_DATABASE_ID` | *(optional)* the Database ID from step 1.4 — leave unset to auto-create |
 | `INVENTORY_URL` | *(optional, later)* your BUSY/DBMS feed URL |
 
 ### 3. Run it
