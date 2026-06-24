@@ -123,6 +123,25 @@ export const UI: Record<string, Loc> = {
   lb_rep: { en: "Salesperson", hi: "सेल्सपर्सन" },
   lb_store: { en: "Store", hi: "स्टोर" },
 
+  // ── command centre (Phase 4) ──
+  cc_title: { en: "Command Centre", hi: "कमांड सेंटर" },
+  cc_sub: { en: "Network health at a glance — items-per-bill, store comparison and stock ageing across all stores.", hi: "एक नज़र में नेटवर्क स्थिति — प्रति बिल वस्तुएँ, स्टोर तुलना और सभी स्टोरों में स्टॉक की आयु।" },
+  cc_northstar: { en: "Items / bill (network)", hi: "प्रति बिल वस्तुएँ (नेटवर्क)" },
+  cc_ipb_target: { en: "North star · target 1.3–1.8", hi: "लक्ष्य · 1.3–1.8" },
+  cc_stores_live: { en: "Stores live", hi: "सक्रिय स्टोर" },
+  cc_synced: { en: "Synced", hi: "सिंक" },
+  cc_units_lbl: { en: "units in stock", hi: "यूनिट स्टॉक में" },
+  cc_deadstock: { en: "Aged stock (units)", hi: "पुराना स्टॉक (यूनिट)" },
+  cc_deadstock_sub: { en: "ageing 5–6 · clear first", hi: "आयु 5–6 · पहले निकालें" },
+  cc_store_cmp: { en: "Store comparison", hi: "स्टोर तुलना" },
+  cc_skus_short: { en: "SKUs", hi: "एसकेयू" },
+  cc_bills: { en: "Bills (mo)", hi: "बिल (माह)" },
+  cc_ageing: { en: "Stock ageing", hi: "स्टॉक आयु" },
+  cc_coverage: { en: "Category coverage", hi: "श्रेणी कवरेज" },
+  cc_coverage_hint: { en: "“—” marks a category with no stock at that store — a gap to fill.", hi: "“—” उस स्टोर पर बिना स्टॉक वाली श्रेणी — भरने योग्य कमी।" },
+  cc_fresh: { en: "Fresh (1–4)", hi: "नया (1–4)" },
+  cc_aged: { en: "Aged (5–6)", hi: "पुराना (5–6)" },
+
   // ── admin editors (Phase 2) ──
   cfg_title: { en: "Engine Config", hi: "इंजन कॉन्फ़िग" },
   cfg_sub: { en: "Tune the recommendation engine and questions live — changes apply to the next recommendation, no redeploy.", hi: "रेकमेंडेशन इंजन व प्रश्न लाइव ट्यून करें — बदलाव अगली सिफ़ारिश पर लागू, बिना रीडिप्लॉय।" },

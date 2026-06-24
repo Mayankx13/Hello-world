@@ -18,6 +18,8 @@ database_id = "REPLACE_WITH_D1_DATABASE_ID"
 # Leave unset to seed from the bundled liqo_inventory.json.
 # INVENTORY_URL = "https://feed.internal.liqo.example/inventory.json"
 # INVENTORY_FORMAT = "json"   # or "csv"
+# INVENTORY_SOURCE = "url"    # force a source: "seed" | "url" (else inferred)
+# Cloud DBMS cutover (Hyperdrive) + column contract: see docs/DATA-SOURCES.md
 
 # Secrets (not vars):
 #   wrangler secret put ADMIN_TOKEN     # to allow POST /sync

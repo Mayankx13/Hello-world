@@ -9,13 +9,14 @@
  *
  * The UI only imports from here — it never knows which transport is active.
  */
-import { recommend, transformInventory } from "@engine";
+import { recommend, transformInventory, mergeLeaderboard } from "@engine";
 import type {
   EngineConfig,
   InventoryItem,
   RawInventoryRow,
   RecommendRequest,
   RecommendResult,
+  SessionRecord,
 } from "@engine";
 
 export type {
@@ -34,6 +35,7 @@ export interface Store {
 
 export interface SessionLog {
   sessionId: string;
+  userId?: string | null; // salesperson (filled from the signed-in user if omitted)
   storeId: string;
   category: string;
   lang: string;
@@ -163,23 +165,52 @@ export async function postRecommend(req: RecommendRequest): Promise<RecommendRes
   return recommend(req, inventory, cfg);
 }
 
+const SESSIONS_KEY = "liqo.sessions";
+
+/** The signed-in user id, read from the auth blob (for session attribution). */
+function currentUserId(): string | null {
+  try {
+    const raw = localStorage.getItem("liqo.auth");
+    return raw ? (JSON.parse(raw) as { user?: { id?: string } }).user?.id ?? null : null;
+  } catch {
+    return null;
+  }
+}
+
 /** POST /session — best-effort; never blocks the UI. */
 export async function logSession(s: SessionLog): Promise<void> {
+  const withUser: SessionLog = { ...s, userId: s.userId ?? currentUserId() };
   try {
     if (IS_REMOTE) {
       await fetch(`${API_BASE}/session`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(s),
+        body: JSON.stringify(withUser),
       });
     } else {
-      const key = "liqo.sessions";
-      const prev = JSON.parse(localStorage.getItem(key) ?? "[]");
-      prev.push(s);
-      localStorage.setItem(key, JSON.stringify(prev));
+      const prev = JSON.parse(localStorage.getItem(SESSIONS_KEY) ?? "[]");
+      prev.push(withUser);
+      localStorage.setItem(SESSIONS_KEY, JSON.stringify(prev));
     }
   } catch {
     /* swallow — logging must never break the journey */
+  }
+}
+
+/** Locally-logged journeys → session records for the offline leaderboard overlay. */
+function readLocalSessions(): SessionRecord[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SESSIONS_KEY) ?? "[]") as SessionLog[];
+    return raw.map((s) => ({
+      userId: s.userId ?? null,
+      storeId: s.storeId ?? null,
+      outcome: s.outcome ?? null,
+      itemsPerBill: s.itemsPerBill ?? null,
+      total: s.total ?? null,
+      ts: s.ts ?? null,
+    }));
+  } catch {
+    return [];
   }
 }
 
@@ -240,7 +271,11 @@ export async function getLeaderboard(opts?: { storeId?: string | null }): Promis
   if (IS_REMOTE) {
     rows = await getJSON<{ rows: LeaderboardRow[] }>(`${API_BASE}/leaderboard`).then((d) => d.rows);
   } else {
-    rows = await getJSON<{ rows: LeaderboardRow[] }>(`${BASE}leaderboard-demo.json`).then((d) => d.rows);
+    // Demo: seed the board from the bundled sample, then overlay the signed-in
+    // salesperson's own logged journeys so their row climbs live as they sell.
+    const demo = await getJSON<{ rows: LeaderboardRow[] }>(`${BASE}leaderboard-demo.json`).then((d) => d.rows);
+    const local = readLocalSessions();
+    rows = local.length ? (mergeLeaderboard(demo, local, new Date().toISOString()) as LeaderboardRow[]) : demo;
   }
   if (opts?.storeId) rows = rows.filter((r) => r.storeId === opts.storeId);
   return rows;
@@ -257,6 +292,50 @@ export async function getInventoryList(opts: { storeId: string }): Promise<Inven
 }
 
 export type { InventoryItem } from "@engine";
+
+// ---- catalog health (Command Centre — Phase 4) ----
+export interface CategoryHealth { category: string; items: number; units: number; lastSyncedAt?: string }
+export interface StoreCoverage { storeId: string; category: string; items: number; units: number }
+export interface AgeingBucket { slab: string | null; rank: number; items: number; units: number }
+export interface CatalogHealth {
+  totalRows: number;
+  totalUnits: number;
+  lastSyncedAt: string | null;
+  perCategory: CategoryHealth[];
+  perStore: StoreCoverage[];
+  ageing: AgeingBucket[];
+}
+
+/** Cross-store inventory health for the Command Centre. Remote: GET /catalog/health.
+ *  Offline: aggregate the same shape from the bundled retail inventory. */
+export async function getCatalogHealth(): Promise<CatalogHealth> {
+  if (IS_REMOTE) return getJSON<CatalogHealth>(`${API_BASE}/catalog/health`);
+  const inv = (await getInventory()).filter((i) => i.channel === "retail");
+  const cat = new Map<string, CategoryHealth>();
+  const store = new Map<string, StoreCoverage>();
+  const age = new Map<number, AgeingBucket>();
+  let totalUnits = 0;
+  let lastSyncedAt: string | null = null;
+  for (const i of inv) {
+    totalUnits += i.stockQty;
+    if (!lastSyncedAt || i.lastSyncedAt > lastSyncedAt) lastSyncedAt = i.lastSyncedAt;
+    const c = cat.get(i.category) ?? { category: i.category, items: 0, units: 0 };
+    c.items++; c.units += i.stockQty; cat.set(i.category, c);
+    const sk = `${i.storeId}|${i.category}`;
+    const s = store.get(sk) ?? { storeId: i.storeId, category: i.category, items: 0, units: 0 };
+    s.items++; s.units += i.stockQty; store.set(sk, s);
+    const a = age.get(i.ageingRank) ?? { slab: i.ageingSlab, rank: i.ageingRank, items: 0, units: 0 };
+    a.items++; a.units += i.stockQty; age.set(i.ageingRank, a);
+  }
+  return {
+    totalRows: inv.length,
+    totalUnits,
+    lastSyncedAt,
+    perCategory: [...cat.values()].sort((a, b) => a.category.localeCompare(b.category)),
+    perStore: [...store.values()],
+    ageing: [...age.values()].sort((a, b) => a.rank - b.rank),
+  };
+}
 
 // ---- questionnaire shape (mirrors data/questionnaire.json) ----
 export type Lang = "en" | "hi";

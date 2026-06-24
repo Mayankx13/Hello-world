@@ -17,24 +17,57 @@ export interface SyncEnv {
   INVENTORY_URL?: string;
   INVENTORY_FORMAT?: "json" | "csv";
   INVENTORY_AUTH?: string; // optional bearer for the feed
+  /** Force a specific source; otherwise it's inferred (url if set, else seed). */
+  INVENTORY_SOURCE?: SourceKind;
+}
+
+/**
+ * Where the hourly snapshot is pulled from. Add a cloud DBMS by introducing a
+ * new kind here + a branch in getRawInventory — nothing else in the system
+ * changes, because everything downstream reads the D1 snapshot, not the source.
+ *
+ *   seed         bundled JSON (default; demo / first boot)
+ *   url          an HTTP(S) export — a cloud DBMS REST/data API, a presigned
+ *                R2/S3/Blob URL, or the BUSY exporter. JSON array or CSV.
+ *   push         the LAN connector POSTs rows to the Sync Worker /push endpoint
+ *                (handled in index.ts, not here — listed for completeness).
+ *
+ * CLOUD DBMS CUTOVER (Cloudflare Hyperdrive — when live reads are needed):
+ *   1. `wrangler hyperdrive create liqo-db --connection-string=...`
+ *   2. add a [[hyperdrive]] binding (binding = "HYPERDRIVE") to wrangler.toml
+ *   3. add a driver (e.g. `postgres`) and a `case "hyperdrive"` branch below
+ *      that runs the inventory query and maps columns to RawInventoryRow.
+ * See docs/DATA-SOURCES.md for the full runbook and the column contract.
+ */
+export type SourceKind = "seed" | "url" | "push" | "hyperdrive";
+
+export function sourceKind(env: SyncEnv): SourceKind {
+  if (env.INVENTORY_SOURCE) return env.INVENTORY_SOURCE;
+  return env.INVENTORY_URL ? "url" : "seed";
 }
 
 export async function getRawInventory(env: SyncEnv): Promise<{ rows: RawInventoryRow[]; source: string }> {
-  if (env.INVENTORY_URL) {
-    const headers: Record<string, string> = { accept: "application/json, text/csv" };
-    if (env.INVENTORY_AUTH) headers.authorization = `Bearer ${env.INVENTORY_AUTH}`;
-    const res = await fetch(env.INVENTORY_URL, { headers });
-    if (!res.ok) throw new Error(`INVENTORY_URL ${res.status}`);
-    const isCsv =
-      env.INVENTORY_FORMAT === "csv" ||
-      env.INVENTORY_URL.endsWith(".csv") ||
-      (res.headers.get("content-type") ?? "").includes("csv");
-    const text = await res.text();
-    const rows = isCsv ? parseCSV(text) : (JSON.parse(text) as RawInventoryRow[]);
-    return { rows, source: `url:${env.INVENTORY_URL}` };
+  const kind = sourceKind(env);
+  if (kind === "url") {
+    if (!env.INVENTORY_URL) throw new Error("INVENTORY_SOURCE=url but INVENTORY_URL is unset");
+    return loadFromUrl(env);
   }
   // Default: the bundled seed JSON (already matches the target schema).
   return { rows: seed as unknown as RawInventoryRow[], source: "seed:liqo_inventory.json" };
+}
+
+async function loadFromUrl(env: SyncEnv): Promise<{ rows: RawInventoryRow[]; source: string }> {
+  const headers: Record<string, string> = { accept: "application/json, text/csv" };
+  if (env.INVENTORY_AUTH) headers.authorization = `Bearer ${env.INVENTORY_AUTH}`;
+  const res = await fetch(env.INVENTORY_URL!, { headers });
+  if (!res.ok) throw new Error(`INVENTORY_URL ${res.status}`);
+  const isCsv =
+    env.INVENTORY_FORMAT === "csv" ||
+    env.INVENTORY_URL!.endsWith(".csv") ||
+    (res.headers.get("content-type") ?? "").includes("csv");
+  const text = await res.text();
+  const rows = isCsv ? parseCSV(text) : (JSON.parse(text) as RawInventoryRow[]);
+  return { rows, source: `url:${env.INVENTORY_URL}` };
 }
 
 /**
