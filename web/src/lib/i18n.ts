@@ -73,4 +73,53 @@ export const UI: Record<string, Loc> = {
   new_customer: { en: "New customer", hi: "नया ग्राहक" },
   pros_con: { en: "Pros & cons", hi: "फ़ायदे व नुकसान" },
   offline_badge: { en: "Demo mode (offline engine)", hi: "डेमो मोड (ऑफ़लाइन इंजन)" },
+
+  // ── roles ──
+  role_admin: { en: "Admin / CXO", hi: "एडमिन / सीएक्सओ" },
+  role_manager: { en: "Store Manager", hi: "स्टोर मैनेजर" },
+  role_salesperson: { en: "Salesperson", hi: "सेल्सपर्सन" },
+
+  // ── login ──
+  tagline: { en: "Sell more per bill. Clear aged stock. Quietly.", hi: "हर बिल पर ज़्यादा बेचें। पुराना स्टॉक निकालें। शांति से।" },
+  login_blurb: {
+    en: "A guided sales assistant, a multi-store command centre, and a live BUSY-fed inventory browser — built to lift items-per-bill from 1.0 to 1.3–1.8.",
+    hi: "एक गाइडेड सेल्स असिस्टेंट, मल्टी-स्टोर कमांड सेंटर और लाइव BUSY इन्वेंट्री ब्राउज़र — प्रति बिल वस्तुएँ 1.0 से 1.3–1.8 तक बढ़ाने के लिए।",
+  },
+  sign_in: { en: "Sign in", hi: "साइन इन" },
+  email_or_phone: { en: "Email or phone", hi: "ईमेल या फ़ोन" },
+  password: { en: "Password", hi: "पासवर्ड" },
+  use_work_email: { en: "Use your work email or phone", hi: "अपना कार्य ईमेल या फ़ोन उपयोग करें" },
+  demo_accounts: { en: "Demo accounts (one-tap fill)", hi: "डेमो खाते (एक-टैप)" },
+  signing_in: { en: "Signing in…", hi: "साइन इन हो रहा है…" },
+  sign_out: { en: "Sign out", hi: "साइन आउट" },
+  stat_skus: { en: "SKUs", hi: "एसकेयू" },
+  stat_stores: { en: "Stores", hi: "स्टोर" },
+  stat_categories: { en: "Hero categories", hi: "मुख्य श्रेणियाँ" },
+
+  // ── nav ──
+  nav_sales: { en: "Sales Assistant", hi: "सेल्स असिस्टेंट" },
+  nav_inventory: { en: "Inventory", hi: "इन्वेंट्री" },
+  nav_command: { en: "Command Centre", hi: "कमांड सेंटर" },
+  nav_leaderboard: { en: "Leaderboard", hi: "लीडरबोर्ड" },
+  nav_config: { en: "Engine Config", hi: "इंजन कॉन्फ़िग" },
+  nav_data: { en: "Data & Import", hi: "डेटा व इम्पोर्ट" },
+  busy_connected: { en: "BUSY ERP connected", hi: "BUSY ERP जुड़ा है" },
+  all_stores: { en: "All stores", hi: "सभी स्टोर" },
+  coming_soon: { en: "coming up next", hi: "जल्द आ रहा है" },
+
+  // ── leaderboard ──
+  lb_title: { en: "Leaderboard", hi: "लीडरबोर्ड" },
+  lb_sub: { en: "Healthy competition — within store and across stores", hi: "स्वस्थ प्रतिस्पर्धा — स्टोर में और स्टोरों के बीच" },
+  lb_week: { en: "This week", hi: "इस सप्ताह" },
+  lb_month: { en: "This month", hi: "इस माह" },
+  lb_within: { en: "My store", hi: "मेरा स्टोर" },
+  lb_across: { en: "All stores", hi: "सभी स्टोर" },
+  lb_points: { en: "pts", hi: "अंक" },
+  lb_ipb: { en: "Items / bill", hi: "वस्तु / बिल" },
+  lb_reco: { en: "Bought-recommended", hi: "अनुशंसित खरीदा" },
+  lb_streak: { en: "day streak", hi: "दिन की लय" },
+  lb_you: { en: "You", hi: "आप" },
+  lb_rank: { en: "Rank", hi: "रैंक" },
+  lb_rep: { en: "Salesperson", hi: "सेल्सपर्सन" },
+  lb_store: { en: "Store", hi: "स्टोर" },
 };

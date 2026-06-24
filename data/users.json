@@ -1,0 +1,95 @@
+{
+  "demoPassword": "liqo",
+  "users": [
+    {
+      "id": "u-admin",
+      "email": "admin@liqo.in",
+      "name": "Aarav Mehta",
+      "role": "admin",
+      "storeId": null,
+      "title": "Admin / CXO",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-mgr-zk",
+      "email": "manager.zirakpur@liqo.in",
+      "name": "Ritu Sharma",
+      "role": "manager",
+      "storeId": "zirakpur",
+      "title": "Store Manager",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-mgr-pk",
+      "email": "manager.panchkula@liqo.in",
+      "name": "Vikram Singh",
+      "role": "manager",
+      "storeId": "panchkula",
+      "title": "Store Manager",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-s1-zk",
+      "email": "sales1.zirakpur@liqo.in",
+      "name": "Simran Kaur",
+      "role": "salesperson",
+      "storeId": "zirakpur",
+      "title": "Salesperson",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-s2-zk",
+      "email": "sales2.zirakpur@liqo.in",
+      "name": "Rohit Verma",
+      "role": "salesperson",
+      "storeId": "zirakpur",
+      "title": "Salesperson",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-s3-zk",
+      "email": "sales3.zirakpur@liqo.in",
+      "name": "Neha Gupta",
+      "role": "salesperson",
+      "storeId": "zirakpur",
+      "title": "Salesperson",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-s1-pk",
+      "email": "sales1.panchkula@liqo.in",
+      "name": "Arjun Rana",
+      "role": "salesperson",
+      "storeId": "panchkula",
+      "title": "Salesperson",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-s2-pk",
+      "email": "sales2.panchkula@liqo.in",
+      "name": "Pooja Mehta",
+      "role": "salesperson",
+      "storeId": "panchkula",
+      "title": "Salesperson",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-s1-ch",
+      "email": "sales1.chandigarh@liqo.in",
+      "name": "Karan Bedi",
+      "role": "salesperson",
+      "storeId": "chandigarh",
+      "title": "Salesperson",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    },
+    {
+      "id": "u-s2-ch",
+      "email": "sales2.chandigarh@liqo.in",
+      "name": "Anjali Rao",
+      "role": "salesperson",
+      "storeId": "chandigarh",
+      "title": "Salesperson",
+      "passHash": "6bcd2fd8c9480a93ace5f9cf90ee38c122290d71e9fc0f163f8fb047eb75a299"
+    }
+  ]
+}

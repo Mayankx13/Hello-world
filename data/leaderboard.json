@@ -1,0 +1,82 @@
+{
+  "updatedAt": "2026-06-24",
+  "rows": [
+    {
+      "userId": "u-s1-zk",
+      "name": "Simran Kaur",
+      "storeId": "zirakpur",
+      "weekPoints": 3964,
+      "monthPoints": 13671,
+      "bills": 96,
+      "itemsPerBill": 1.41,
+      "recoRate": 0.71,
+      "streak": 8
+    },
+    {
+      "userId": "u-s1-pk",
+      "name": "Arjun Rana",
+      "storeId": "panchkula",
+      "weekPoints": 3381,
+      "monthPoints": 13007,
+      "bills": 93,
+      "itemsPerBill": 1.38,
+      "recoRate": 0.68,
+      "streak": 2
+    },
+    {
+      "userId": "u-s2-pk",
+      "name": "Pooja Mehta",
+      "storeId": "panchkula",
+      "weekPoints": 2493,
+      "monthPoints": 11872,
+      "bills": 88,
+      "itemsPerBill": 1.33,
+      "recoRate": 0.63,
+      "streak": 6
+    },
+    {
+      "userId": "u-s2-ch",
+      "name": "Anjali Rao",
+      "storeId": "chandigarh",
+      "weekPoints": 1927,
+      "monthPoints": 10147,
+      "bills": 71,
+      "itemsPerBill": 1.36,
+      "recoRate": 0.46,
+      "streak": 4
+    },
+    {
+      "userId": "u-s1-ch",
+      "name": "Karan Bedi",
+      "storeId": "chandigarh",
+      "weekPoints": 2974,
+      "monthPoints": 9295,
+      "bills": 69,
+      "itemsPerBill": 1.34,
+      "recoRate": 0.74,
+      "streak": 8
+    },
+    {
+      "userId": "u-s2-zk",
+      "name": "Rohit Verma",
+      "storeId": "zirakpur",
+      "weekPoints": 2548,
+      "monthPoints": 8787,
+      "bills": 81,
+      "itemsPerBill": 1.06,
+      "recoRate": 0.56,
+      "streak": 8
+    },
+    {
+      "userId": "u-s3-zk",
+      "name": "Neha Gupta",
+      "storeId": "zirakpur",
+      "weekPoints": 2132,
+      "monthPoints": 7352,
+      "bills": 66,
+      "itemsPerBill": 1.11,
+      "recoRate": 0.71,
+      "streak": 8
+    }
+  ]
+}
