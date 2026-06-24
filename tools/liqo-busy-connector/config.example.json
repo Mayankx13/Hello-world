@@ -1,0 +1,21 @@
+{
+  "sql": {
+    "server": "WIN-0A5I5MNR100",
+    "port": 1433,
+    "user": "SA",
+    "password": "PREFER the LIQO_SQL_PASSWORD env var instead of putting it here",
+    "database": "YOUR_BUSY_DATABASE_NAME",
+    "options": {
+      "encrypt": false,
+      "trustServerCertificate": true,
+      "instanceName": ""
+    }
+  },
+
+  "query": "SELECT ItemCode AS sku, BranchName AS store, 'ac' AS category, BrandName AS brand, ItemName AS name, SubGroup AS subCategory, Capacity AS capacityValue, StarRating AS starRating, Inverter AS inverter, ValueWithGst AS valueWithGst, Qty AS qty, Qty AS stockQty, AgeingSlab AS ageingSlab, MarginAmt AS skuMargin FROM dbo.YourInventoryView WHERE Qty > 0",
+
+  "push": {
+    "url": "https://liqo-sync.<your-subdomain>.workers.dev/push",
+    "adminToken": "PREFER the LIQO_ADMIN_TOKEN env var instead of putting it here"
+  }
+}

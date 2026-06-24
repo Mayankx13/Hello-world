@@ -129,6 +129,81 @@ export async function logSession(s: SessionLog): Promise<void> {
   }
 }
 
+// ---- roles, auth & dashboards (Phase 1) ----
+export type Role = "admin" | "manager" | "salesperson";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  storeId: string | null; // null = all stores (admin)
+  title: string;
+}
+
+export interface LeaderboardRow {
+  userId: string;
+  name: string;
+  storeId: string;
+  weekPoints: number;
+  monthPoints: number;
+  bills: number;
+  itemsPerBill: number;
+  recoRate: number;
+  streak: number;
+}
+
+interface DemoUsersFile {
+  demoPassword: string;
+  users: (AuthUser & { passHash?: string })[];
+}
+
+let _demoUsers: Promise<DemoUsersFile> | null = null;
+export function getDemoUsers(): Promise<DemoUsersFile> {
+  return (_demoUsers ??= getJSON<DemoUsersFile>(`${BASE}users.json`));
+}
+
+/** Authenticate. Offline/demo: validate against bundled users.json. Remote: POST /auth/login. */
+export async function apiLogin(email: string, password: string): Promise<{ token: string; user: AuthUser }> {
+  if (IS_REMOTE) {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) throw new Error(res.status === 401 ? "Invalid email or password" : `Login failed (${res.status})`);
+    return res.json() as Promise<{ token: string; user: AuthUser }>;
+  }
+  const { demoPassword, users } = await getDemoUsers();
+  const u = users.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
+  if (!u || (password && password !== demoPassword)) throw new Error("Invalid email or password");
+  const user: AuthUser = { id: u.id, email: u.email, name: u.name, role: u.role, storeId: u.storeId, title: u.title };
+  return { token: `demo:${u.id}`, user };
+}
+
+export async function getLeaderboard(opts?: { storeId?: string | null }): Promise<LeaderboardRow[]> {
+  let rows: LeaderboardRow[];
+  if (IS_REMOTE) {
+    rows = await getJSON<{ rows: LeaderboardRow[] }>(`${API_BASE}/leaderboard`).then((d) => d.rows);
+  } else {
+    rows = await getJSON<{ rows: LeaderboardRow[] }>(`${BASE}leaderboard-demo.json`).then((d) => d.rows);
+  }
+  if (opts?.storeId) rows = rows.filter((r) => r.storeId === opts.storeId);
+  return rows;
+}
+
+/** Inventory rows for the Inventory Browser (retail, one store). */
+export async function getInventoryList(opts: { storeId: string }): Promise<InventoryItem[]> {
+  if (IS_REMOTE) {
+    const u = `${API_BASE}/inventory?storeId=${encodeURIComponent(opts.storeId)}`;
+    return getJSON<{ items: InventoryItem[] }>(u).then((d) => d.items);
+  }
+  const inv = await getInventory();
+  return inv.filter((i) => i.channel === "retail" && i.storeId === opts.storeId);
+}
+
+export type { InventoryItem } from "@engine";
+
 // ---- questionnaire shape (mirrors data/questionnaire.json) ----
 export type Lang = "en" | "hi";
 export type Loc = Record<Lang, string>;

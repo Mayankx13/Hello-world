@@ -16,12 +16,27 @@ import { recommend } from "../../src/engine/recommend";
 import type { Category, EngineConfig, RecommendRequest } from "../../src/engine/types";
 import { loadInventory, type D1Like } from "../../src/shared/d1";
 import { loadConfig, saveConfig } from "../../src/shared/config";
+import usersFile from "../../data/users.json";
+import leaderboardFile from "../../data/leaderboard.json";
 
 export interface Env {
   DB: D1Like;
   ADMIN_TOKEN?: string;
   ALLOWED_ORIGIN?: string;
+  AUTH_SECRET?: string;
 }
+
+interface DemoUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  storeId: string | null;
+  title: string;
+  passHash?: string;
+}
+const USERS = usersFile as { demoPassword: string; users: DemoUser[] };
+const LEADERBOARD = leaderboardFile as { rows: Array<{ storeId: string }> };
 
 const CATEGORIES: Category[] = ["ac", "tv", "fridge", "wm"];
 
@@ -37,6 +52,9 @@ export default {
       if (pathname === "/" || pathname === "/health") {
         return json(env, { ok: true, service: "liqo-api", time: new Date().toISOString() });
       }
+      if (pathname === "/auth/login" && method === "POST") return handleLogin(req, env);
+      if (pathname === "/leaderboard" && method === "GET") return handleLeaderboard(env, url);
+      if (pathname === "/inventory" && method === "GET") return handleInventory(env, url);
       if (pathname === "/recommend" && method === "POST") return handleRecommend(req, env);
       if (pathname === "/stores" && method === "GET") return handleStores(env);
       if (pathname === "/catalog/health" && method === "GET") return handleCatalogHealth(env);
@@ -77,6 +95,60 @@ function validateRecommend(b: Partial<RecommendRequest>): string | null {
   if (!Array.isArray(b.answers)) return "answers[] required";
   if (!b.budgetBand || !["good", "better", "best"].includes(b.budgetBand)) return "budgetBand required";
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// POST /auth/login — role-based sign-in (pilot-grade; demo accounts).
+// TODO(auth): replace with a D1 users table + real password hashing / OTP /
+// Cloudflare Access for production.
+// ---------------------------------------------------------------------------
+async function handleLogin(req: Request, env: Env): Promise<Response> {
+  const body = (await req.json().catch(() => ({}))) as { email?: string; password?: string };
+  const email = (body.email ?? "").trim().toLowerCase();
+  const u = USERS.users.find((x) => x.email.toLowerCase() === email);
+  if (!u || (body.password && body.password !== USERS.demoPassword)) {
+    return json(env, { error: "unauthorized", message: "Invalid email or password" }, 401);
+  }
+  const user = { id: u.id, email: u.email, name: u.name, role: u.role, storeId: u.storeId, title: u.title };
+  const token = await signToken(env, { sub: u.id, role: u.role, storeId: u.storeId });
+  return json(env, { token, user });
+}
+
+// ---------------------------------------------------------------------------
+// GET /leaderboard — gamification feed.
+// TODO(phase3): aggregate live from the sessions table per salesperson.
+// ---------------------------------------------------------------------------
+async function handleLeaderboard(env: Env, url: URL): Promise<Response> {
+  const storeId = url.searchParams.get("storeId");
+  let rows = LEADERBOARD.rows;
+  if (storeId) rows = rows.filter((r) => r.storeId === storeId);
+  return json(env, { rows });
+}
+
+// ---------------------------------------------------------------------------
+// GET /inventory?storeId= — retail rows for the Inventory Browser.
+// ---------------------------------------------------------------------------
+async function handleInventory(env: Env, url: URL): Promise<Response> {
+  const storeId = url.searchParams.get("storeId");
+  if (!storeId) return json(env, { error: "bad_request", message: "storeId required" }, 400);
+  const items = (await loadInventory(env.DB, { storeId })).filter((i) => i.channel === "retail");
+  return json(env, { items });
+}
+
+/** Sign a compact HMAC token (header-less JWT-style). Pilot-grade. */
+async function signToken(env: Env, payload: Record<string, unknown>): Promise<string> {
+  const secret = env.AUTH_SECRET || "liqo-pilot-dev-secret";
+  const bodyB64 = btoa(JSON.stringify({ ...payload, iat: Math.floor(Date.now() / 1000) }));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(bodyB64));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)));
+  return `${bodyB64}.${sigB64}`;
 }
 
 // ---------------------------------------------------------------------------
