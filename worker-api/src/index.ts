@@ -15,7 +15,7 @@
 import { recommend } from "../../src/engine/recommend";
 import type { Category, EngineConfig, RecommendRequest } from "../../src/engine/types";
 import { loadInventory, type D1Like } from "../../src/shared/d1";
-import { loadConfig, saveConfig } from "../../src/shared/config";
+import { loadConfig, saveConfig, loadQuestionnaire, saveQuestionnaire } from "../../src/shared/config";
 import usersFile from "../../data/users.json";
 import leaderboardFile from "../../data/leaderboard.json";
 
@@ -59,8 +59,10 @@ export default {
       if (pathname === "/stores" && method === "GET") return handleStores(env);
       if (pathname === "/catalog/health" && method === "GET") return handleCatalogHealth(env);
       if (pathname === "/session" && method === "POST") return handleSession(req, env);
-      if (pathname === "/config" && method === "GET") return handleGetConfig(req, env);
+      if (pathname === "/config" && method === "GET") return handleGetConfig(env);
       if (pathname === "/config" && method === "PUT") return handlePutConfig(req, env);
+      if (pathname === "/questionnaire" && method === "GET") return handleGetQuestionnaire(env);
+      if (pathname === "/questionnaire" && method === "PUT") return handlePutQuestionnaire(req, env);
       if (pathname === "/admin/sessions/export" && method === "GET") return handleSessionsExport(req, env, url);
 
       return json(env, { error: "not_found", path: pathname }, 404);
@@ -241,20 +243,37 @@ async function handleSession(req: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------------------
 // GET/PUT /config  (admin token)
 // ---------------------------------------------------------------------------
-async function handleGetConfig(req: Request, env: Env): Promise<Response> {
-  if (!checkAdmin(req, env)) return json(env, { error: "unauthorized" }, 401);
+async function handleGetConfig(env: Env): Promise<Response> {
+  // Public read — the app needs price bands / attach live.
+  // TODO(prod): split a public app-config (bands, attach, emi) from the full
+  // commercial config (rankingBlend, brandPreference, marginModel).
   const cfg = await loadConfig(env.DB);
   return json(env, cfg);
 }
 
 async function handlePutConfig(req: Request, env: Env): Promise<Response> {
-  if (!checkAdmin(req, env)) return json(env, { error: "unauthorized" }, 401);
+  if (!(await checkAdmin(req, env))) return json(env, { error: "unauthorized" }, 401);
   const cfg = (await req.json().catch(() => null)) as EngineConfig | null;
   const err = validateConfig(cfg);
   if (err) return json(env, { error: "bad_request", message: err }, 400);
   cfg!.updatedAt = new Date().toISOString();
   await saveConfig(env.DB, cfg!);
   return json(env, { ok: true, version: cfg!.version, updatedAt: cfg!.updatedAt });
+}
+
+// GET /questionnaire (public) · PUT /questionnaire (admin) — live, no redeploy.
+async function handleGetQuestionnaire(env: Env): Promise<Response> {
+  return json(env, await loadQuestionnaire(env.DB));
+}
+
+async function handlePutQuestionnaire(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return json(env, { error: "unauthorized" }, 401);
+  const q = (await req.json().catch(() => null)) as { categories?: unknown } | null;
+  if (!q || typeof q !== "object" || !q.categories) {
+    return json(env, { error: "bad_request", message: "questionnaire with categories required" }, 400);
+  }
+  await saveQuestionnaire(env.DB, q);
+  return json(env, { ok: true });
 }
 
 function validateConfig(c: EngineConfig | null): string | null {
@@ -274,7 +293,7 @@ function validateConfig(c: EngineConfig | null): string | null {
 // GET /admin/sessions/export  (admin token) — ?format=csv|json
 // ---------------------------------------------------------------------------
 async function handleSessionsExport(req: Request, env: Env, url: URL): Promise<Response> {
-  if (!checkAdmin(req, env)) return json(env, { error: "unauthorized" }, 401);
+  if (!(await checkAdmin(req, env))) return json(env, { error: "unauthorized" }, 401);
   const { results } = await env.DB
     .prepare("SELECT * FROM sessions ORDER BY created_at DESC LIMIT 5000")
     .all<Record<string, unknown>>();
@@ -296,11 +315,36 @@ function toCSV(rows: Record<string, unknown>[]): string {
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
-function checkAdmin(req: Request, env: Env): boolean {
-  if (!env.ADMIN_TOKEN) return false;
+/** Admin gate: a logged-in admin (signed token role=admin) OR the ADMIN_TOKEN secret. */
+async function checkAdmin(req: Request, env: Env): Promise<boolean> {
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.replace(/^Bearer\s+/i, "").trim() || req.headers.get("x-admin-token") || "";
-  return token === env.ADMIN_TOKEN;
+  if (!token) return false;
+  if (env.ADMIN_TOKEN && token === env.ADMIN_TOKEN) return true;
+  const payload = await verifyToken(env, token);
+  return payload?.role === "admin";
+}
+
+async function verifyToken(env: Env, token: string): Promise<{ role?: string; sub?: string } | null> {
+  const dot = token.indexOf(".");
+  if (dot < 0) return null;
+  const body = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  try {
+    const secret = env.AUTH_SECRET || "liqo-pilot-dev-secret";
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+    const sigBytes = Uint8Array.from(atob(sig), (c) => c.charCodeAt(0));
+    const ok = await crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(body));
+    return ok ? (JSON.parse(atob(body)) as { role?: string; sub?: string }) : null;
+  } catch {
+    return null;
+  }
 }
 
 function corsHeaders(env: Env): Record<string, string> {
