@@ -1,12 +1,14 @@
 name: Deploy LIQO to Cloudflare
 
 # Deploys EVERYTHING to Cloudflare from CI — no local machine needed:
-#   1. apply D1 schema   2. deploy API Worker   3. deploy Sync Worker (hourly cron)
-#   4. seed inventory     5. build + deploy the PWA to Cloudflare Pages
+#   1. apply D1 schema   2. API Worker   3. Sync Worker (hourly cron)
+#   4. seed inventory     5. the PWA (Pages)   6. the marketing site (Pages)
+#
+# Custom domain (amaflip.in) is wired by repo variables — see docs/DOMAIN-SETUP.md.
+# Without them the stack still deploys to *.workers.dev / *.pages.dev unchanged.
 #
 # Runs on push once you set the repo variable DEPLOY_ENABLED=true, or any time
-# via the "Run workflow" button (Actions tab). See DEPLOY.md for the one-time
-# secrets/variables you must add first.
+# via the "Run workflow" button (Actions tab). See DEPLOY.md for first-time setup.
 
 on:
   push:
@@ -29,10 +31,20 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
       INVENTORY_URL: ${{ vars.INVENTORY_URL }}
-      # Optional: override if "liqo" is already taken on pages.dev (it's global).
-      PAGES_PROJECT: ${{ vars.PAGES_PROJECT }}
+      # Custom-domain wiring (all optional — unset = *.workers.dev / *.pages.dev).
+      API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}   # e.g. api.amaflip.in
+      APP_API_BASE: ${{ vars.APP_API_BASE }}             # e.g. https://api.amaflip.in
+      APP_DOMAIN: ${{ vars.APP_DOMAIN }}                 # e.g. app.amaflip.in
+      SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}               # e.g. amaflip.in
+      SITE_DOMAIN_WWW: ${{ vars.SITE_DOMAIN_WWW }}       # e.g. www.amaflip.in
+      # Pages project names (global on pages.dev — override if taken).
+      PAGES_PROJECT: ${{ vars.PAGES_PROJECT }}           # app, default "liqo-app"
+      SITE_PROJECT: ${{ vars.SITE_PROJECT }}             # site, default "liqo-site"
+      LLM_RATIONALE: ${{ vars.LLM_RATIONALE }}           # "on" to enable Phase 5
     steps:
       - uses: actions/checkout@v4
 
@@ -54,13 +66,23 @@ jobs:
       - name: Engine tests (gate the deploy)
         run: npm test
 
-      - name: Inject D1 database id into wrangler configs
+      - name: Inject config into wrangler files
         run: |
           sed -i "s/REPLACE_WITH_D1_DATABASE_ID/${D1_DATABASE_ID}/" \
             worker-api/wrangler.toml worker-sync/wrangler.toml
-          # Optional: point the Sync Worker at the real BUSY feed (else bundled seed).
+          # Point the Sync Worker at the real feed (else the bundled seed).
           if [ -n "${INVENTORY_URL}" ]; then
             printf '\nINVENTORY_URL = "%s"\n' "${INVENTORY_URL}" >> worker-sync/wrangler.toml
+          fi
+          # Turn on the LLM rationale layer (Phase 5) if requested.
+          if [ "${LLM_RATIONALE}" = "on" ]; then
+            sed -i 's/^LLM_RATIONALE = .*/LLM_RATIONALE = "on"/' worker-api/wrangler.toml
+          fi
+          # Bind the API Worker to a custom domain (auto-provisions DNS + cert).
+          # Appended as its own top-level table-array so it is NOT nested in [vars].
+          if [ -n "${API_CUSTOM_DOMAIN}" ]; then
+            printf '\n[[routes]]\npattern = "%s"\ncustom_domain = true\n' "${API_CUSTOM_DOMAIN}" >> worker-api/wrangler.toml
+            echo "API Worker will bind to https://${API_CUSTOM_DOMAIN}"
           fi
 
       - name: Apply D1 schema (idempotent)
@@ -74,6 +96,8 @@ jobs:
           url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/api.log | head -1)
           echo "API_URL=$url" >> "$GITHUB_ENV"
           printf '%s' "$ADMIN_TOKEN" | npx wrangler secret put ADMIN_TOKEN
+          if [ -n "${AUTH_SECRET}" ]; then printf '%s' "$AUTH_SECRET" | npx wrangler secret put AUTH_SECRET; fi
+          if [ -n "${ANTHROPIC_API_KEY}" ]; then printf '%s' "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY; fi
 
       - name: Deploy Sync Worker (hourly cron)
         working-directory: worker-sync
@@ -89,25 +113,55 @@ jobs:
           curl -fsS -X POST "${SYNC_URL}/sync" \
             -H "authorization: Bearer ${ADMIN_TOKEN}" || echo "::warning::seed call failed (cron will retry hourly)"
 
-      - name: Build PWA (pointed at the deployed API)
+      - name: Build PWA (pointed at the API)
         working-directory: web
         run: |
-          echo "VITE_API_BASE=${API_URL}" > .env.production
+          # Prefer the custom API domain when provided, else the workers.dev URL.
+          api_base="${APP_API_BASE:-$API_URL}"
+          echo "VITE_API_BASE=${api_base}" > .env.production
+          echo "Building app against API ${api_base}"
           npm run build
 
       - name: Deploy PWA to Cloudflare Pages
         working-directory: web
         run: |
-          project="${PAGES_PROJECT:-liqo}"
+          project="${PAGES_PROJECT:-liqo-app}"
           echo "PAGES_PROJECT_NAME=$project" >> "$GITHUB_ENV"
           npx wrangler pages project create "$project" --production-branch=production 2>/dev/null || true
           npx wrangler pages deploy dist --project-name="$project" --branch=production --commit-dirty=true
+
+      - name: Deploy marketing site to Cloudflare Pages
+        run: |
+          project="${SITE_PROJECT:-liqo-site}"
+          echo "SITE_PROJECT_NAME=$project" >> "$GITHUB_ENV"
+          npx wrangler pages project create "$project" --production-branch=production 2>/dev/null || true
+          npx wrangler pages deploy site --project-name="$project" --branch=production --commit-dirty=true
+
+      - name: Attach custom domains (optional)
+        run: |
+          attach() {  # $1=pages project  $2=hostname
+            [ -z "$2" ] && return 0
+            if curl -fsS -X POST \
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/$1/domains" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "content-type: application/json" \
+                --data "{\"name\":\"$2\"}" >/dev/null 2>&1; then
+              echo "attached $2 -> $1"
+            else
+              echo "::warning::could not attach $2 to $1 (add it once in the Pages dashboard)"
+            fi
+          }
+          attach "${PAGES_PROJECT_NAME}" "${APP_DOMAIN}"
+          attach "${SITE_PROJECT_NAME}" "${SITE_DOMAIN}"
+          attach "${SITE_PROJECT_NAME}" "${SITE_DOMAIN_WWW}"
 
       - name: Summary
         run: |
           {
             echo "### LIQO deployed 🚀"
-            echo "- PWA:  https://${PAGES_PROJECT_NAME}.pages.dev  ← open this"
-            echo "- API:  ${API_URL}"
+            echo "- Marketing: https://${SITE_DOMAIN:-$SITE_PROJECT_NAME.pages.dev}"
+            echo "- App:  https://${APP_DOMAIN:-$PAGES_PROJECT_NAME.pages.dev}"
+            echo "- API:  https://${API_CUSTOM_DOMAIN:-${API_URL#https://}}"
             echo "- Sync: ${SYNC_URL}  (hourly cron)"
+            [ "${LLM_RATIONALE}" = "on" ] && echo "- AI rationale: ON (Claude Haiku 4.5)"
           } >> "$GITHUB_STEP_SUMMARY"

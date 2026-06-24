@@ -58,12 +58,18 @@ run **Summary** prints your three URLs.
 
 | Thing | URL |
 | --- | --- |
-| PWA (open this on the tablet/phone) | `https://liqo.pages.dev` |
+| PWA (open this on the tablet/phone) | `https://liqo-app.pages.dev` |
+| Marketing website | `https://liqo-site.pages.dev` |
 | API Worker | `https://liqo-api.<your-subdomain>.workers.dev` |
 | Sync Worker (hourly cron) | `https://liqo-sync.<your-subdomain>.workers.dev` |
 
-Install the PWA from `liqo.pages.dev`: Android Chrome → *Install app*; iOS Safari
-→ Share → *Add to Home Screen*.
+Install the PWA from `liqo-app.pages.dev`: Android Chrome → *Install app*; iOS
+Safari → Share → *Add to Home Screen*.
+
+> **Going live on your own domain (amaflip.in)?** See **[docs/DOMAIN-SETUP.md](docs/DOMAIN-SETUP.md)** —
+> set a handful of repo variables and the same workflow serves the marketing site
+> on `amaflip.in`, the app on `app.amaflip.in` and the API on `api.amaflip.in`,
+> with DNS + TLS provisioned automatically.
 
 ## After it's live
 
@@ -77,8 +83,10 @@ Install the PWA from `liqo.pages.dev`: Android Chrome → *Install app*; iOS Saf
 
 ## Notes / alternatives
 
-- **Custom domain:** add it to the Pages project (Pages → *Custom domains*) and,
-  for the API, a Worker route — both in the Cloudflare dashboard.
+- **Custom domain (amaflip.in):** fully automated by the workflow — follow
+  **[docs/DOMAIN-SETUP.md](docs/DOMAIN-SETUP.md)** (add the zone, widen the token,
+  set the repo variables). DNS + TLS for `amaflip.in`, `app.amaflip.in` and
+  `api.amaflip.in` are provisioned for you.
 - **PWA on Vercel/Netlify instead:** possible (point its build at `web/`, set
   `VITE_API_BASE`), but the **API + Sync + D1 must stay on Cloudflare** — Workers
   and D1 don't run elsewhere. Keeping all three on Cloudflare is simplest.
