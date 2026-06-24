@@ -8,7 +8,7 @@
  */
 import { transformInventory, type RawInventoryRow } from "../../src/engine/mapper";
 import { replaceInventory, type D1Like } from "../../src/shared/d1";
-import { loadConfig, saveConfig, DEFAULT_CONFIG } from "../../src/shared/config";
+import { loadConfig, saveConfig, saveQuestionnaire, DEFAULT_CONFIG, DEFAULT_QUESTIONNAIRE } from "../../src/shared/config";
 import { getRawInventory, type SyncEnv } from "./source";
 
 export interface Env extends SyncEnv {
@@ -21,6 +21,8 @@ async function ensureConfig(env: Env) {
   const existing = await env.DB.prepare("SELECT 1 AS ok FROM config WHERE key = 'engine'").first<{ ok: number }>();
   const cfg = existing ? await loadConfig(env.DB) : DEFAULT_CONFIG;
   if (!existing) await saveConfig(env.DB, cfg);
+  const qExists = await env.DB.prepare("SELECT 1 AS ok FROM config WHERE key = 'questionnaire'").first<{ ok: number }>();
+  if (!qExists) await saveQuestionnaire(env.DB, DEFAULT_QUESTIONNAIRE);
   return cfg;
 }
 

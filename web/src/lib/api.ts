@@ -64,19 +64,73 @@ async function getJSON<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ---- bundled app-shell data (served from /public, cached by the SW) ----
-let _config: Promise<EngineConfig> | null = null;
-let _questionnaire: Promise<Questionnaire> | null = null;
+// ---- app-shell data (live config + questionnaire are editable from admin) ----
 let _stores: Promise<Store[]> | null = null;
 let _inventory: Promise<InventoryItem[]> | null = null;
 
-export function getConfig(): Promise<EngineConfig> {
-  return (_config ??= getJSON<EngineConfig>(`${BASE}config.json`));
+// Admin edits apply live with NO redeploy: offline they're held as a localStorage
+// override; remote they're PUT to the API Worker (D1). Reads prefer the override,
+// then the live API (remote) or the bundled default (offline).
+const CFG_OVERRIDE = "liqo.config.override";
+const Q_OVERRIDE = "liqo.questionnaire.override";
+
+function readOverride<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
 }
 
-export function getQuestionnaire(): Promise<Questionnaire> {
-  return (_questionnaire ??= getJSON<Questionnaire>(`${BASE}questionnaire.json`));
+export async function getConfig(): Promise<EngineConfig> {
+  const ov = readOverride<EngineConfig>(CFG_OVERRIDE);
+  if (ov) return ov;
+  return getJSON<EngineConfig>(IS_REMOTE ? `${API_BASE}/config` : `${BASE}config.json`);
 }
+
+export async function getQuestionnaire(): Promise<Questionnaire> {
+  const ov = readOverride<Questionnaire>(Q_OVERRIDE);
+  if (ov) return ov;
+  return getJSON<Questionnaire>(IS_REMOTE ? `${API_BASE}/questionnaire` : `${BASE}questionnaire.json`);
+}
+
+function authHeaders(token?: string | null): Record<string, string> {
+  const h: Record<string, string> = { "content-type": "application/json" };
+  if (token) h.authorization = `Bearer ${token}`;
+  return h;
+}
+
+export async function saveConfigLive(cfg: EngineConfig, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    const res = await fetch(`${API_BASE}/config`, { method: "PUT", headers: authHeaders(token), body: JSON.stringify(cfg) });
+    if (!res.ok) throw new Error(res.status === 401 ? "Admin access required" : `Save failed (${res.status})`);
+  } else {
+    localStorage.setItem(CFG_OVERRIDE, JSON.stringify(cfg));
+  }
+}
+
+export async function saveQuestionnaireLive(q: Questionnaire, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    const res = await fetch(`${API_BASE}/questionnaire`, { method: "PUT", headers: authHeaders(token), body: JSON.stringify(q) });
+    if (!res.ok) throw new Error(res.status === 401 ? "Admin access required" : `Save failed (${res.status})`);
+  } else {
+    localStorage.setItem(Q_OVERRIDE, JSON.stringify(q));
+  }
+}
+
+export async function resetConfigLive(token?: string | null): Promise<void> {
+  if (IS_REMOTE) await saveConfigLive(await getJSON<EngineConfig>(`${BASE}config.json`), token);
+  else localStorage.removeItem(CFG_OVERRIDE);
+}
+
+export async function resetQuestionnaireLive(token?: string | null): Promise<void> {
+  if (IS_REMOTE) await saveQuestionnaireLive(await getJSON<Questionnaire>(`${BASE}questionnaire.json`), token);
+  else localStorage.removeItem(Q_OVERRIDE);
+}
+
+export function hasConfigOverride(): boolean { return !!readOverride(CFG_OVERRIDE); }
+export function hasQuestionnaireOverride(): boolean { return !!readOverride(Q_OVERRIDE); }
 
 export function getStores(): Promise<Store[]> {
   if (_stores) return _stores;

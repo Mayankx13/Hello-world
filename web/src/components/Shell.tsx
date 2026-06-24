@@ -9,6 +9,7 @@ import { Bolt, NavIcon } from "./NavIcons";
 import SalesAssistant from "../screens/SalesAssistant";
 import InventoryBrowser from "../screens/InventoryBrowser";
 import Leaderboard from "../screens/Leaderboard";
+import EngineConfigScreen from "../screens/EngineConfig";
 import Placeholder from "../screens/Placeholder";
 
 type Section = "sales" | "inventory" | "command" | "leaderboard" | "config" | "data";
@@ -68,8 +69,7 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
         desc="North-star items-per-bill, store comparison, dead-stock and inventory health across all stores — arriving next." />;
       break;
     case "config":
-      body = <Placeholder lang={lang} title={t(UI.nav_config, lang)} icon="config"
-        desc="Edit price bands, the ranking blend, brand priority, attach baskets and the questionnaire live — no redeploy. Phase 2." />;
+      body = <EngineConfigScreen lang={lang} />;
       break;
     default:
       body = <Placeholder lang={lang} title={t(UI.nav_data, lang)} icon="data"
