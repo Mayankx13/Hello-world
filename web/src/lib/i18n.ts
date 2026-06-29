@@ -204,6 +204,11 @@ export const UI: Record<string, Loc> = {
   q_multi: { en: "Multi", hi: "बहु" },
   q_max: { en: "Max", hi: "अधिकतम" },
   ai_assist: { en: "Draft with AI (Phase 5)", hi: "AI से ड्राफ़्ट (फ़ेज़ 5)" },
+  q_suggest: { en: "Suggest with AI", hi: "AI से सुझाव" },
+  q_suggest_loading: { en: "Analysing interactions…", hi: "इंटरैक्शन जाँचे जा रहे…" },
+  q_suggest_none: { en: "No suggestions right now — questions look well-tuned.", hi: "अभी कोई सुझाव नहीं — प्रश्न ठीक हैं।" },
+  q_suggest_off: { en: "Connect the live API and enable the AI (LLM_RATIONALE=on) to get suggestions.", hi: "सुझाव हेतु लाइव API जोड़ें व AI सक्षम करें (LLM_RATIONALE=on)।" },
+  q_suggest_add: { en: "+ Add to questionnaire", hi: "+ प्रश्नावली में जोड़ें" },
 
   // ── nav (admin frontend) ──
   nav_people: { en: "People", hi: "टीम" },

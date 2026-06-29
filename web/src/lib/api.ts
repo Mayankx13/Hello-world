@@ -143,6 +143,24 @@ export async function resetQuestionnaireLive(token?: string | null): Promise<voi
 export function hasConfigOverride(): boolean { return !!readOverride(CFG_OVERRIDE); }
 export function hasQuestionnaireOverride(): boolean { return !!readOverride(Q_OVERRIDE); }
 
+// ---- LLM-suggested questionnaire improvements (D.3) ----
+export interface QuestionSuggestion {
+  category: string;
+  action: "add" | "reword" | "improve_options";
+  questionId?: string;
+  prompt: { en: string; hi: string };
+  options: { label: { en: string; hi: string }; tags: string[] }[];
+  rationale: string;
+}
+/** Ask the LLM (Haiku 4.5, via the API Worker) to propose questionnaire
+ *  improvements from logged interactions. Admin-only; needs the remote API. */
+export async function suggestQuestions(lang: Lang, token?: string | null): Promise<{ suggestions: QuestionSuggestion[]; enabled: boolean }> {
+  if (!IS_REMOTE) return { suggestions: [], enabled: false };
+  const res = await fetch(`${API_BASE}/questions/suggest`, { method: "POST", headers: authHeaders(token), body: JSON.stringify({ lang }) });
+  if (!res.ok) throw new Error(res.status === 401 ? "Admin access required" : `Suggest failed (${res.status})`);
+  return res.json() as Promise<{ suggestions: QuestionSuggestion[]; enabled: boolean }>;
+}
+
 export function getStores(): Promise<Store[]> {
   if (_stores) return _stores;
   _stores = IS_REMOTE

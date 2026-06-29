@@ -196,6 +196,14 @@
 .et-h { font-family: var(--disp); font-weight: 800; font-size: 15px; color: var(--indigo); margin: 22px 0 10px; }
 .et-empty { color: var(--muted); padding: 16px 0; }
 
+/* ---------- AI question suggestions (D.3) ---------- */
+.ed-suggest { margin: 4px 0 18px; }
+.ed-suggestions { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+.ed-sugg { background: var(--surface); border: 1.5px solid var(--amber); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+.ed-sugg-prompt { font-family: var(--disp); font-weight: 700; font-size: 15px; color: var(--ink); margin: 8px 0; }
+.ed-sugg-opts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.ed-sugg-why { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-bottom: 10px; }
+
 /* ---------- admin editors (Engine Config — Phase 2) ---------- */
 .cfg-screen { max-width: 920px; }
 .ed-tabs { display: flex; gap: 8px; margin: 18px 0 20px; border-bottom: 1px solid var(--line); }

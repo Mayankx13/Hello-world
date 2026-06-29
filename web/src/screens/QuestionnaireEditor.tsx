@@ -6,8 +6,9 @@ import {
   saveQuestionnaireLive,
   resetQuestionnaireLive,
   hasQuestionnaireOverride,
+  suggestQuestions,
 } from "../lib/api";
-import type { Lang, Loc, Questionnaire, QQuestion, QOption } from "../lib/api";
+import type { Lang, Loc, Questionnaire, QQuestion, QOption, QuestionSuggestion } from "../lib/api";
 import { UI, t } from "../lib/i18n";
 
 const CAT_ORDER: { id: string; label: string }[] = [
@@ -27,6 +28,9 @@ export default function QuestionnaireEditor({ lang, token, onChanged }: { lang: 
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [err, setErr] = useState<string | null>(null);
   const [edited, setEdited] = useState(false);
+  const [suggestions, setSuggestions] = useState<QuestionSuggestion[] | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestMsg, setSuggestMsg] = useState<string | null>(null);
 
   useEffect(() => { getQuestionnaire().then((q) => { setDraft(clone(q)); setEdited(hasQuestionnaireOverride()); }); }, []);
 
@@ -66,6 +70,29 @@ export default function QuestionnaireEditor({ lang, token, onChanged }: { lang: 
     });
   }
 
+  async function loadSuggestions() {
+    setSuggesting(true); setSuggestMsg(null); setSuggestions(null);
+    try {
+      const { suggestions: list, enabled } = await suggestQuestions(lang, token);
+      setSuggestions(list);
+      if (!enabled) setSuggestMsg(t(UI.q_suggest_off, lang));
+      else if (list.length === 0) setSuggestMsg(t(UI.q_suggest_none, lang));
+    } catch (e) { setSuggestMsg((e as Error).message); }
+    finally { setSuggesting(false); }
+  }
+  function applySuggestion(s: QuestionSuggestion) {
+    patch((d) => {
+      const qs = d.categories[s.category]?.questions ?? d.categories[activeCat].questions;
+      qs.push({
+        id: `q_ai_${qs.length + 1}`,
+        gate: "feature", kind: "single",
+        prompt: { en: s.prompt.en, hi: s.prompt.hi },
+        options: s.options.map((o, i) => ({ id: `opt_${i + 1}`, label: { en: o.label.en, hi: o.label.hi }, tags: o.tags.map((tg) => slug(tg)) })),
+      });
+    });
+    setSuggestions((cur) => cur?.filter((x) => x !== s) ?? null);
+  }
+
   return (
     <div className="editor">
       <div className="ed-cattabs">
@@ -74,6 +101,26 @@ export default function QuestionnaireEditor({ lang, token, onChanged }: { lang: 
             {t(draft.categories[c.id]?.label, lang) || c.label}
           </button>
         ))}
+      </div>
+
+      <div className="ed-suggest">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={loadSuggestions} disabled={suggesting}>
+          ✨ {suggesting ? t(UI.q_suggest_loading, lang) : t(UI.q_suggest, lang)}
+        </button>
+        {suggestMsg && <span className="ed-sub" style={{ marginLeft: 10 }}>{suggestMsg}</span>}
+        {suggestions && suggestions.length > 0 && (
+          <div className="ed-suggestions">
+            {suggestions.map((s, i) => (
+              <div className="ed-sugg" key={i}>
+                <span className="ed-gate">{s.category} · {s.action}</span>
+                <div className="ed-sugg-prompt">{t({ en: s.prompt.en, hi: s.prompt.hi } as Loc, lang)}</div>
+                <div className="ed-sugg-opts">{s.options.map((o, j) => <span key={j} className="tag-pill">{t({ en: o.label.en, hi: o.label.hi } as Loc, lang)}</span>)}</div>
+                <div className="ed-sugg-why">{s.rationale}</div>
+                <button type="button" className="btn btn-indigo btn-sm" onClick={() => applySuggestion(s)}>{t(UI.q_suggest_add, lang)}</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {questions.map((q, qi) => (
