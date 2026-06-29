@@ -184,5 +184,5 @@ jobs:
             echo "- App:  https://${APP_DOMAIN:-$PAGES_PROJECT_NAME.pages.dev}"
             echo "- API:  https://${API_CUSTOM_DOMAIN:-${API_URL#https://}}"
             echo "- Sync: ${SYNC_URL}  (hourly cron)"
-            [ "${LLM_RATIONALE}" = "on" ] && echo "- AI rationale: ON (Claude Haiku 4.5)"
-          } >> "$GITHUB_STEP_SUMMARY"
+            if [ "${LLM_RATIONALE}" = "on" ]; then echo "- AI rationale: ON (Claude Haiku 4.5)"; fi
+          } >> "$GITHUB_STEP_SUMMARY" || true
