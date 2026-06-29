@@ -65,6 +65,7 @@ export default {
         return json(env, { ok: true, service: "liqo-api", time: new Date().toISOString() });
       }
       if (pathname === "/auth/login" && method === "POST") return handleLogin(req, env);
+      if (pathname === "/auth/change-password" && method === "POST") return handleChangePassword(req, env);
       if (pathname === "/leaderboard" && method === "GET") return handleLeaderboard(env, url);
       if (pathname === "/inventory" && method === "GET") return handleInventory(env, url);
       if (pathname === "/recommend" && method === "POST") return handleRecommend(req, env);
@@ -247,6 +248,31 @@ async function handleLogin(req: Request, env: Env): Promise<Response> {
   }
 
   return json(env, { error: "unauthorized", message: "Invalid email or password" }, 401);
+}
+
+/** The signed-in employee's id (token `sub`), or null. */
+async function currentUserId(req: Request, env: Env): Promise<string | null> {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  const payload = await verifyToken(env, token);
+  return payload?.sub ?? null;
+}
+
+/** POST /auth/change-password — self-service password update for DB accounts. */
+async function handleChangePassword(req: Request, env: Env): Promise<Response> {
+  const uid = await currentUserId(req, env);
+  if (!uid) return unauthorized(env);
+  const b = (await req.json().catch(() => ({}))) as { oldPassword?: string; newPassword?: string };
+  const oldP = b.oldPassword ?? "";
+  const newP = b.newPassword ?? "";
+  if (newP.length < 4) return badRequest(env, "New password must be at least 4 characters");
+  const emp = await dao.getEmployee(env.DB, uid);
+  if (!emp) return badRequest(env, "Password change is only available for database accounts.");
+  if (!emp.pass_hash || (await sha256hex(oldP)) !== emp.pass_hash) {
+    return json(env, { error: "unauthorized", message: "Current password is incorrect" }, 401);
+  }
+  await dao.setEmployeePassword(env.DB, uid, await sha256hex(newP));
+  return json(env, { ok: true });
 }
 
 // ---------------------------------------------------------------------------

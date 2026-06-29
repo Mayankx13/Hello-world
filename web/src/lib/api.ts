@@ -296,6 +296,18 @@ export async function apiLogin(email: string, password: string): Promise<{ token
   return { token: `demo:${u.id}`, user };
 }
 
+/** Self-service password change (remote only — demo accounts are read-only). */
+export async function changePassword(oldPassword: string, newPassword: string, token?: string | null): Promise<void> {
+  if (!IS_REMOTE) throw new Error("Password change isn't available in offline/demo mode.");
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: "POST", headers: authHeaders(token), body: JSON.stringify({ oldPassword, newPassword }),
+  });
+  if (!res.ok) {
+    const msg = await res.json().catch(() => null) as { message?: string } | null;
+    throw new Error(msg?.message ?? (res.status === 401 ? "Current password is incorrect" : `Failed (${res.status})`));
+  }
+}
+
 export async function getLeaderboard(opts?: { storeId?: string | null }): Promise<LeaderboardRow[]> {
   let rows: LeaderboardRow[];
   if (IS_REMOTE) {

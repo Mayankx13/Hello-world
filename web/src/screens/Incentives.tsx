@@ -63,6 +63,24 @@ export default function Incentives({ lang, user, token }: { lang: Lang; user: Au
     () => (rows ?? []).filter((r) => r.status === "credited" || r.status === "settled").reduce((sum, r) => sum + r.amount_inr, 0),
     [rows],
   );
+  // Total actually disbursed (settled by payroll).
+  const paidOut = useMemo(
+    () => (rows ?? []).filter((r) => r.status === "settled").reduce((sum, r) => sum + r.amount_inr, 0),
+    [rows],
+  );
+  // Per-period (month) rollup — newest first.
+  const byPeriod = useMemo(() => {
+    const m = new Map<string, { credited: number; paid: number; points: number }>();
+    for (const r of rows ?? []) {
+      if (r.status === "void") continue;
+      const a = m.get(r.period) ?? { credited: 0, paid: 0, points: 0 };
+      if (r.status === "credited" || r.status === "settled") a.credited += r.amount_inr;
+      if (r.status === "settled") a.paid += r.amount_inr;
+      a.points += r.points;
+      m.set(r.period, a);
+    }
+    return [...m.entries()].sort((x, y) => (x[0] < y[0] ? 1 : -1));
+  }, [rows]);
 
   return (
     <div className="content-narrow af-screen" lang={lang}>
@@ -90,6 +108,34 @@ export default function Incentives({ lang, user, token }: { lang: Lang; user: Au
             </div>
           ))}
         </div>
+      )}
+
+      {rows && rows.length > 0 && (
+        <>
+          <div className="inc-stats">
+            <div className="inc-stat paid"><span className="inc-stat-l">{t(UI.inc_paid_out, lang)}</span><span className="inc-stat-v">{inr(paidOut)}</span></div>
+            <div className="inc-stat"><span className="inc-stat-l">{t(UI.inc_total_credit, lang)}</span><span className="inc-stat-v">{inr(credited)}</span></div>
+          </div>
+          <h3 className="af-h">{t(UI.inc_by_month, lang)}</h3>
+          <div className="tbl-scroll">
+            <table className="lb-table">
+              <thead><tr>
+                <th>{t(UI.inc_period, lang)}</th><th>{t(UI.inc_points, lang)}</th>
+                <th>{t(UI.inc_amount, lang)}</th><th>{t(UI.inc_paid_out, lang)}</th>
+              </tr></thead>
+              <tbody>
+                {byPeriod.map(([period, v]) => (
+                  <tr key={period}>
+                    <td style={{ fontWeight: 700 }}>{period}</td>
+                    <td><span className="tag-pill">{v.points}</span></td>
+                    <td className="pts-cell"><b>{inr(v.credited)}</b></td>
+                    <td style={{ color: "var(--success, #1B7F4D)", fontWeight: 700 }}>{inr(v.paid)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <div className="af-ledger-head">

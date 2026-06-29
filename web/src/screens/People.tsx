@@ -44,7 +44,7 @@ function roleLabel(r: Role, lang: Lang): string {
   return r === "admin" ? t(UI.role_admin, lang) : r === "manager" ? t(UI.role_manager, lang) : t(UI.role_salesperson, lang);
 }
 
-export default function People({ lang, storeId, token }: { lang: Lang; storeId: string; token: string | null }): JSX.Element {
+export default function People({ lang, storeId, token, isAdmin }: { lang: Lang; storeId: string; token: string | null; isAdmin: boolean }): JSX.Element {
   const [tab, setTab] = useState<Tab>("employees");
   const [stores, setStores] = useState<Store[]>([]);
 
@@ -66,7 +66,7 @@ export default function People({ lang, storeId, token }: { lang: Lang; storeId: 
 
       {!IS_REMOTE && <p className="af-demo-note">{t(UI.af_offline_note, lang)}</p>}
 
-      {tab === "employees" && <Employees lang={lang} token={token} stores={stores} storeName={storeName} />}
+      {tab === "employees" && <Employees lang={lang} token={token} stores={stores} storeName={storeName} isAdmin={isAdmin} />}
       {tab === "attendance" && <AttendanceTab lang={lang} token={token} stores={stores} defaultStoreId={storeId} />}
       {tab === "leaves" && <Leaves lang={lang} token={token} />}
     </div>
@@ -76,8 +76,8 @@ export default function People({ lang, storeId, token }: { lang: Lang; storeId: 
 // ---------------------------------------------------------------------------
 // Employees tab
 // ---------------------------------------------------------------------------
-function Employees({ lang, token, stores, storeName }: {
-  lang: Lang; token: string | null; stores: Store[]; storeName: (id: string | null | undefined) => string;
+function Employees({ lang, token, stores, storeName, isAdmin }: {
+  lang: Lang; token: string | null; stores: Store[]; storeName: (id: string | null | undefined) => string; isAdmin: boolean;
 }): JSX.Element {
   const [rows, setRows] = useState<Employee[] | null>(null);
   const [adding, setAdding] = useState(false);
@@ -99,12 +99,14 @@ function Employees({ lang, token, stores, storeName }: {
     <section className="af-section">
       <div className="af-bar">
         <span className="af-count">{rows.length}</span>
-        <button type="button" className="btn btn-amber btn-sm" onClick={() => setAdding((v) => !v)}>
-          {adding ? t(UI.af_cancel, lang) : `+ ${t(UI.ppl_add_emp, lang)}`}
-        </button>
+        {isAdmin && (
+          <button type="button" className="btn btn-amber btn-sm" onClick={() => setAdding((v) => !v)}>
+            {adding ? t(UI.af_cancel, lang) : `+ ${t(UI.ppl_add_emp, lang)}`}
+          </button>
+        )}
       </div>
 
-      {adding && <AddEmployeeForm lang={lang} stores={stores} onSaved={() => { setAdding(false); reload(); }} onCancel={() => setAdding(false)} token={token} />}
+      {isAdmin && adding && <AddEmployeeForm lang={lang} stores={stores} onSaved={() => { setAdding(false); reload(); }} onCancel={() => setAdding(false)} token={token} />}
 
       <div className="tbl-scroll">
         <table className="lb-table">
@@ -132,9 +134,11 @@ function Employees({ lang, token, stores, storeName }: {
                 <td style={{ textTransform: "capitalize", color: "var(--muted)" }}>{storeName(e.store_id)}</td>
                 <td><span className={`af-pill ${e.status === "active" ? "ok" : "off"}`}>{e.status === "active" ? t(UI.af_active, lang) : t(UI.af_inactive, lang)}</span></td>
                 <td style={{ textAlign: "right" }}>
-                  <button type="button" className="btn-link" disabled={busy === e.employee_id} onClick={() => toggleStatus(e)}>
-                    {e.status === "active" ? t(UI.ppl_deactivate, lang) : t(UI.ppl_activate, lang)}
-                  </button>
+                  {isAdmin ? (
+                    <button type="button" className="btn-link" disabled={busy === e.employee_id} onClick={() => toggleStatus(e)}>
+                      {e.status === "active" ? t(UI.ppl_deactivate, lang) : t(UI.ppl_activate, lang)}
+                    </button>
+                  ) : <span style={{ color: "var(--line)" }}>—</span>}
                 </td>
               </tr>
             ))}

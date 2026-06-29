@@ -488,6 +488,14 @@ export async function getEmployeeByLogin(db: D1Like, ident: string): Promise<Emp
     .first<EmployeeRow>();
 }
 
+/** Set a new password hash for an employee (used by self-service change-password). */
+export async function setEmployeePassword(db: D1Like, employeeId: string, passHash: string): Promise<void> {
+  await db
+    .prepare("UPDATE employees SET pass_hash = ?, updated_at = ? WHERE employee_id = ?")
+    .bind(passHash, new Date().toISOString(), employeeId)
+    .run();
+}
+
 /** Insert-or-update by employee_id (natural PK). Sets updated_at = nowISO. */
 export async function upsertEmployee(db: D1Like, emp: EmployeeInput): Promise<void> {
   await db

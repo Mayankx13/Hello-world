@@ -16,11 +16,13 @@ import People from "../screens/People";
 import Incentives from "../screens/Incentives";
 import Feedback from "../screens/Feedback";
 import Offers from "../screens/Offers";
+import Promotions from "../screens/Promotions";
 import Placeholder from "../screens/Placeholder";
+import AccountModal from "./AccountModal";
 
 type Section =
   | "sales" | "inventory" | "command" | "leaderboard" | "config" | "engine-test" | "data"
-  | "people" | "incentives" | "feedback" | "offers";
+  | "people" | "incentives" | "feedback" | "offers" | "promotions";
 
 interface NavDef { id: Section; roles: Role[]; icon: keyof typeof NavIcon; label: keyof typeof UI }
 const NAV: NavDef[] = [
@@ -28,6 +30,7 @@ const NAV: NavDef[] = [
   { id: "inventory", roles: ["admin", "manager", "salesperson"], icon: "inventory", label: "nav_inventory" },
   { id: "command", roles: ["admin"], icon: "command", label: "nav_command" },
   { id: "people", roles: ["admin", "manager"], icon: "people", label: "nav_people" },
+  { id: "promotions", roles: ["admin", "manager", "salesperson"], icon: "offers", label: "nav_promotions" },
   { id: "leaderboard", roles: ["admin", "manager", "salesperson"], icon: "leaderboard", label: "nav_leaderboard" },
   { id: "incentives", roles: ["admin", "manager", "salesperson"], icon: "incentives", label: "nav_incentives" },
   { id: "feedback", roles: ["admin", "manager", "salesperson"], icon: "feedback", label: "nav_feedback" },
@@ -46,6 +49,7 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(user!.storeId);
   const [navOpen, setNavOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     getStores().then(setStores).catch(() => {});
@@ -87,7 +91,7 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
       body = <EngineTest lang={lang} token={IS_REMOTE ? token : null} />;
       break;
     case "people":
-      body = <People lang={lang} storeId={concreteStoreId} token={IS_REMOTE ? token : null} />;
+      body = <People lang={lang} storeId={concreteStoreId} token={IS_REMOTE ? token : null} isAdmin={isAdmin} />;
       break;
     case "incentives":
       body = <Incentives lang={lang} user={user!} token={IS_REMOTE ? token : null} />;
@@ -97,6 +101,9 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
       break;
     case "offers":
       body = <Offers lang={lang} token={IS_REMOTE ? token : null} />;
+      break;
+    case "promotions":
+      body = <Promotions lang={lang} storeId={isAdmin ? (selectedStoreId ?? "") : concreteStoreId} />;
       break;
     default:
       body = <Placeholder lang={lang} title={t(UI.nav_data, lang)} icon="data"
@@ -148,14 +155,17 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
               {lang === "en" ? <><b>EN</b> | हिं</> : <>EN | <b>हिं</b></>}
             </button>
             <div className="usr">
-              <span className="av">{initials}</span>
-              <span className="who"><b>{user!.name}</b><small>{t(roleLabel(role), lang)}</small></span>
+              <button type="button" className="usr-btn" onClick={() => setAccountOpen(true)} aria-label={t(UI.acc_title, lang)} title={t(UI.acc_title, lang)}>
+                <span className="av">{initials}</span>
+                <span className="who"><b>{user!.name}</b><small>{t(roleLabel(role), lang)}</small></span>
+              </button>
               <button type="button" className="out" onClick={logout}>{t(UI.sign_out, lang)}</button>
             </div>
           </div>
         </header>
         <main className="content">{body}</main>
       </div>
+      {accountOpen && <AccountModal lang={lang} user={user!} token={IS_REMOTE ? token : null} onClose={() => setAccountOpen(false)} />}
     </div>
   );
 }
