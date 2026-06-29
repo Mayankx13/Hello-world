@@ -21,6 +21,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260617.1",
     "@types/node": "^20.14.0",
+    "playwright-core": "^1.49.0",
     "typescript": "^5.5.3",
     "vitest": "^2.1.9"
   }

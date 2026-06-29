@@ -15,7 +15,7 @@ export const UI: Record<string, Loc> = {
     en: "Answer five quick questions — under two minutes — and we'll match you with the best options in stock at this store, with honest pros and cons.",
     hi: "पाँच आसान सवालों के जवाब दें — दो मिनट से कम में — और हम इस स्टोर में उपलब्ध सबसे अच्छे विकल्प, ईमानदार फ़ायदे-नुकसान के साथ बताएँगे।",
   },
-  phone_ph: { en: "Mobile number (optional — get your picks on WhatsApp)", hi: "मोबाइल नंबर (वैकल्पिक — WhatsApp पर अपने विकल्प पाएँ)" },
+  phone_ph: { en: "Mobile number (optional)", hi: "मोबाइल नंबर (वैकल्पिक)" },
   consent: {
     en: "We'll use your number only to send this recommendation and for service updates. You can opt out anytime. (DPDP consent)",
     hi: "हम आपका नंबर केवल यह सुझाव भेजने और सेवा अपडेट के लिए उपयोग करेंगे। आप कभी भी मना कर सकते हैं। (DPDP सहमति)",
