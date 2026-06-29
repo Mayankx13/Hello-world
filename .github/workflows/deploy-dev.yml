@@ -1,0 +1,169 @@
+name: Deploy LIQO to Cloudflare (DEV)
+
+# Parallel DEV pipeline. Same logic as deploy.yml, but everything is suffixed
+# `-dev` and points at dev.amaflip.in — a fully separate copy of frontend +
+# backend (its own D1 `liqo-dev`, workers liqo-api-dev / liqo-sync-dev, Pages
+# liqo-app-dev / liqo-site-dev). Production (deploy.yml on master) is untouched.
+#
+#   develop branch ──▶ this workflow ──▶ dev.amaflip.in / app-dev / api-dev
+#   master  branch ──▶ deploy.yml     ──▶ amaflip.in / app / api
+#
+# Enable with repo variable DEPLOY_DEV_ENABLED=true (or the Run workflow button).
+# See docs/DEV-ENV.md. Reuses the same CLOUDFLARE_* + ADMIN_TOKEN/AUTH_SECRET
+# secrets as prod; override per-env later via GitHub Environments if you want.
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: liqo-deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-dev:
+    if: ${{ vars.DEPLOY_DEV_ENABLED == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Dev resource names + domains (all have sensible defaults — override via vars).
+      DEV_D1_DATABASE_ID: ${{ vars.DEV_D1_DATABASE_ID }}
+      DEV_API_CUSTOM_DOMAIN: ${{ vars.DEV_API_CUSTOM_DOMAIN }}   # default api-dev.amaflip.in
+      DEV_APP_API_BASE: ${{ vars.DEV_APP_API_BASE }}             # default https://api-dev.amaflip.in
+      DEV_APP_DOMAIN: ${{ vars.DEV_APP_DOMAIN }}                 # default app-dev.amaflip.in
+      DEV_SITE_DOMAIN: ${{ vars.DEV_SITE_DOMAIN }}               # default dev.amaflip.in
+      DEV_PAGES_PROJECT: ${{ vars.DEV_PAGES_PROJECT }}           # default liqo-app-dev
+      DEV_SITE_PROJECT: ${{ vars.DEV_SITE_PROJECT }}             # default liqo-site-dev
+      DEV_INVENTORY_URL: ${{ vars.DEV_INVENTORY_URL }}
+      LLM_RATIONALE: ${{ vars.DEV_LLM_RATIONALE }}               # "on" to enable on dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve dev names
+        run: |
+          echo "API_DOMAIN=${DEV_API_CUSTOM_DOMAIN:-api-dev.amaflip.in}" >> "$GITHUB_ENV"
+          echo "APP_API_BASE=${DEV_APP_API_BASE:-https://api-dev.amaflip.in}" >> "$GITHUB_ENV"
+          echo "APP_DOMAIN=${DEV_APP_DOMAIN:-app-dev.amaflip.in}" >> "$GITHUB_ENV"
+          echo "SITE_DOMAIN=${DEV_SITE_DOMAIN:-dev.amaflip.in}" >> "$GITHUB_ENV"
+          echo "APP_PROJECT=${DEV_PAGES_PROJECT:-liqo-app-dev}" >> "$GITHUB_ENV"
+          echo "SITE_PROJECT=${DEV_SITE_PROJECT:-liqo-site-dev}" >> "$GITHUB_ENV"
+
+      - name: Preflight — required secrets present
+        run: |
+          missing=0
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ADMIN_TOKEN; do
+            if [ -z "${!v}" ]; then echo "::error::Missing $v (see DEPLOY.md / DEV-ENV.md)"; missing=1; fi
+          done
+          [ "$missing" = "0" ] || exit 1
+
+      - name: Install workspace deps
+        run: npm install --no-audit --no-fund
+
+      - name: Engine tests (gate the deploy)
+        run: npm test
+
+      - name: Ensure dev D1 database exists
+        run: |
+          if [ -n "${DEV_D1_DATABASE_ID}" ]; then
+            id="${DEV_D1_DATABASE_ID}"
+          else
+            id=$(npx wrangler d1 list --json 2>/dev/null \
+              | python3 -c "import sys,json;d=json.load(sys.stdin);print(next((x.get('uuid') or x.get('database_id','') for x in d if x.get('name')=='liqo-dev'),''))" 2>/dev/null || true)
+            if [ -z "$id" ]; then
+              npx wrangler d1 create liqo-dev | tee /tmp/d1.log || true
+              id=$(grep -oiE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' /tmp/d1.log | head -1)
+            fi
+          fi
+          if [ -z "$id" ]; then echo "::error::Could not resolve/create the 'liqo-dev' D1"; exit 1; fi
+          echo "D1_ID=$id" >> "$GITHUB_ENV"
+
+      - name: Inject dev config into wrangler files
+        run: |
+          # Point both workers at the dev D1, and rename the bound DB to liqo-dev.
+          sed -i "s/REPLACE_WITH_D1_DATABASE_ID/${D1_ID}/" worker-api/wrangler.toml worker-sync/wrangler.toml
+          sed -i 's/database_name = "liqo"/database_name = "liqo-dev"/' worker-api/wrangler.toml worker-sync/wrangler.toml
+          if [ -n "${DEV_INVENTORY_URL}" ]; then
+            printf '\nINVENTORY_URL = "%s"\n' "${DEV_INVENTORY_URL}" >> worker-sync/wrangler.toml
+          fi
+          if [ "${LLM_RATIONALE}" = "on" ]; then
+            sed -i 's/^LLM_RATIONALE = .*/LLM_RATIONALE = "on"/' worker-api/wrangler.toml
+          fi
+          printf '\n[[routes]]\npattern = "%s"\ncustom_domain = true\n' "${API_DOMAIN}" >> worker-api/wrangler.toml
+
+      - name: Apply schema to dev D1
+        working-directory: worker-api
+        run: npx wrangler d1 execute liqo-dev --remote --file=../schema.sql --yes
+
+      - name: Deploy dev API Worker
+        working-directory: worker-api
+        run: |
+          npx wrangler deploy --name liqo-api-dev | tee /tmp/api.log
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/api.log | head -1)
+          echo "API_URL=$url" >> "$GITHUB_ENV"
+          printf '%s' "$ADMIN_TOKEN" | npx wrangler secret put ADMIN_TOKEN --name liqo-api-dev
+          if [ -n "${AUTH_SECRET}" ]; then printf '%s' "$AUTH_SECRET" | npx wrangler secret put AUTH_SECRET --name liqo-api-dev; fi
+          if [ -n "${ANTHROPIC_API_KEY}" ]; then printf '%s' "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY --name liqo-api-dev; fi
+
+      - name: Deploy dev Sync Worker
+        working-directory: worker-sync
+        run: |
+          npx wrangler deploy --name liqo-sync-dev | tee /tmp/sync.log
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/sync.log | head -1)
+          echo "SYNC_URL=$url" >> "$GITHUB_ENV"
+          printf '%s' "$ADMIN_TOKEN" | npx wrangler secret put ADMIN_TOKEN --name liqo-sync-dev
+
+      - name: Seed dev inventory snapshot
+        run: |
+          curl -fsS -X POST "${SYNC_URL}/sync" -H "authorization: Bearer ${ADMIN_TOKEN}" \
+            || echo "::warning::dev seed call failed (cron will retry hourly)"
+
+      - name: Build dev PWA
+        working-directory: web
+        run: |
+          echo "VITE_API_BASE=${APP_API_BASE}" > .env.production
+          npm run build
+
+      - name: Deploy dev PWA to Pages
+        working-directory: web
+        run: |
+          npx wrangler pages project create "$APP_PROJECT" --production-branch=production 2>/dev/null || true
+          npx wrangler pages deploy dist --project-name="$APP_PROJECT" --branch=production --commit-dirty=true
+
+      - name: Deploy dev marketing site to Pages
+        run: |
+          npx wrangler pages project create "$SITE_PROJECT" --production-branch=production 2>/dev/null || true
+          npx wrangler pages deploy site --project-name="$SITE_PROJECT" --branch=production --commit-dirty=true
+
+      - name: Attach dev custom domains
+        run: |
+          attach() {
+            [ -z "$2" ] && return 0
+            curl -fsS -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/$1/domains" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "content-type: application/json" \
+              --data "{\"name\":\"$2\"}" >/dev/null 2>&1 && echo "attached $2 -> $1" \
+              || echo "::warning::could not attach $2 to $1 (add it once in the Pages dashboard)"
+          }
+          attach "${APP_PROJECT}" "${APP_DOMAIN}"
+          attach "${SITE_PROJECT}" "${SITE_DOMAIN}"
+
+      - name: Summary
+        run: |
+          {
+            echo "### LIQO DEV deployed 🧪"
+            echo "- Marketing: https://${SITE_DOMAIN}"
+            echo "- App:  https://${APP_DOMAIN}"
+            echo "- API:  https://${API_DOMAIN}"
+            echo "- Sync: ${SYNC_URL}  (hourly cron)"
+          } >> "$GITHUB_STEP_SUMMARY" || true
