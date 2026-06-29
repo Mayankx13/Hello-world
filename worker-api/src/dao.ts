@@ -479,6 +479,15 @@ export async function getEmployee(db: D1Like, id: string): Promise<EmployeeRow |
     .first<EmployeeRow>();
 }
 
+/** Look up an ACTIVE employee for login by email (case-insensitive) or phone. */
+export async function getEmployeeByLogin(db: D1Like, ident: string): Promise<EmployeeRow | null> {
+  const id = ident.trim();
+  return db
+    .prepare("SELECT * FROM employees WHERE status='active' AND (lower(email)=lower(?) OR phone=?) LIMIT 1")
+    .bind(id, id)
+    .first<EmployeeRow>();
+}
+
 /** Insert-or-update by employee_id (natural PK). Sets updated_at = nowISO. */
 export async function upsertEmployee(db: D1Like, emp: EmployeeInput): Promise<void> {
   await db

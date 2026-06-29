@@ -215,16 +215,38 @@ function validateRecommend(b: Partial<RecommendRequest>): string | null {
 // TODO(auth): replace with a D1 users table + real password hashing / OTP /
 // Cloudflare Access for production.
 // ---------------------------------------------------------------------------
+/** SHA-256 hex — the password hashing scheme for DB-backed login. */
+async function sha256hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function handleLogin(req: Request, env: Env): Promise<Response> {
   const body = (await req.json().catch(() => ({}))) as { email?: string; password?: string };
-  const email = (body.email ?? "").trim().toLowerCase();
-  const u = USERS.users.find((x) => x.email.toLowerCase() === email);
-  if (!u || (body.password && body.password !== USERS.demoPassword)) {
-    return json(env, { error: "unauthorized", message: "Invalid email or password" }, 401);
+  const ident = (body.email ?? "").trim();
+  const password = body.password ?? "";
+
+  // 1) Database-backed: match an ACTIVE employee by email or phone and verify
+  //    the SHA-256 password hash. This is the real auth once employees are loaded.
+  const emp = await dao.getEmployeeByLogin(env.DB, ident).catch(() => null);
+  if (emp && emp.pass_hash && password && (await sha256hex(password)) === emp.pass_hash) {
+    const user = {
+      id: emp.employee_id, email: emp.email ?? emp.phone ?? emp.employee_id,
+      name: emp.name, role: emp.role, storeId: emp.store_id, title: emp.title,
+    };
+    const token = await signToken(env, { sub: emp.employee_id, role: emp.role, storeId: emp.store_id });
+    return json(env, { token, user });
   }
-  const user = { id: u.id, email: u.email, name: u.name, role: u.role, storeId: u.storeId, title: u.title };
-  const token = await signToken(env, { sub: u.id, role: u.role, storeId: u.storeId });
-  return json(env, { token, user });
+
+  // 2) Fallback: bundled demo accounts (break-glass, e.g. admin@liqo.in / liqo).
+  const u = USERS.users.find((x) => x.email.toLowerCase() === ident.toLowerCase());
+  if (u && (!password || password === USERS.demoPassword)) {
+    const user = { id: u.id, email: u.email, name: u.name, role: u.role, storeId: u.storeId, title: u.title };
+    const token = await signToken(env, { sub: u.id, role: u.role, storeId: u.storeId });
+    return json(env, { token, user });
+  }
+
+  return json(env, { error: "unauthorized", message: "Invalid email or password" }, 401);
 }
 
 // ---------------------------------------------------------------------------
