@@ -170,6 +170,18 @@ h2{font-family:var(--disp);font-weight:700;font-size:clamp(23px,3.6vw,31px);line
 
 @media(max-width:560px){.hero{padding:32px 24px}.q-wrap{padding:26px 20px}.bill{padding:22px 20px}}
 
+/* ---------- customer recall (D.1) ---------- */
+.recall{margin:16px 0 4px;background:var(--amber-soft);border:1.5px solid var(--amber);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-amber)}
+.recall-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.recall-badge{color:var(--amber-deep);font-size:15px}
+.recall-head b{font-family:var(--disp);font-weight:800;font-size:17px;color:var(--ink)}
+.recall-sub{font-size:13px;color:var(--amber-deep)}
+.recall-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.recall-tag{font-size:12.5px;font-weight:700;color:var(--ink);background:var(--surface);border:1px solid var(--amber);border-radius:999px;padding:4px 11px}
+.recall-events{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.recall-lbl{font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:11px;color:var(--amber-deep)}
+.recall-ev{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 9px}
+
 /* ---------- motion / accessibility ---------- */
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}

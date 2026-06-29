@@ -159,6 +159,13 @@ export const UI: Record<string, Loc> = {
   et_price: { en: "Price", hi: "मूल्य" },
   et_score: { en: "Score", hi: "स्कोर" },
 
+  // ── customer recall (D.1) ──
+  recall_back: { en: "Welcome back", hi: "वापसी पर स्वागत" },
+  recall_remembers: { en: "We'll tailor the picks to what you liked last time.", hi: "पिछली बार आपकी पसंद के अनुसार विकल्प चुनेंगे।" },
+  recall_pays: { en: "pays by", hi: "भुगतान" },
+  recall_likes: { en: "likes", hi: "पसंद" },
+  recall_last: { en: "Recent", hi: "हाल ही में" },
+
   // ── admin editors (Phase 2) ──
   cfg_title: { en: "Engine Config", hi: "इंजन कॉन्फ़िग" },
   cfg_sub: { en: "Tune the recommendation engine and questions live — changes apply to the next recommendation, no redeploy.", hi: "रेकमेंडेशन इंजन व प्रश्न लाइव ट्यून करें — बदलाव अगली सिफ़ारिश पर लागू, बिना रीडिप्लॉय।" },

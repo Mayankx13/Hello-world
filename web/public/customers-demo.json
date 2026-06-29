@@ -1,0 +1,19 @@
+{
+  "customers": {
+    "9876500000": {
+      "customer": { "customer_id": "c-9876500000", "phone": "9876500000", "name": "Rohit Verma", "premium_tier": "premium", "preferred_payment": "emi", "home_store_id": "zirakpur", "last_seen_at": "2026-06-20T10:00:00Z" },
+      "prefs": [{ "brand": "LG", "affinity": "likes" }, { "brand": "Samsung", "affinity": "owns" }],
+      "recentEvents": [
+        { "type": "intent", "category": "ac", "brand": "LG", "budget_band": "better", "ts": "2026-06-20T10:00:00Z" },
+        { "type": "purchase", "category": "fridge", "brand": "Samsung", "budget_band": "best", "ts": "2026-03-15T12:00:00Z" }
+      ],
+      "purchases": [{ "total": 48000, "ts": "2026-03-15T12:00:00Z" }]
+    },
+    "9988776655": {
+      "customer": { "customer_id": "c-9988776655", "phone": "9988776655", "name": "Anita Sharma", "premium_tier": "value", "preferred_payment": "exchange", "home_store_id": "panchkula", "last_seen_at": "2026-06-22T16:30:00Z" },
+      "prefs": [{ "brand": "Voltas", "affinity": "likes" }],
+      "recentEvents": [{ "type": "quote", "category": "ac", "brand": "Voltas", "budget_band": "good", "ts": "2026-06-22T16:30:00Z" }],
+      "purchases": []
+    }
+  }
+}

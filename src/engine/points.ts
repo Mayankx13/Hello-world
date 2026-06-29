@@ -46,9 +46,16 @@ const IPB_BONUS = 120;
 const RECO_BONUS = 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Normalise the outcome vocabulary (the app emits `bought_recommended`, the
+ *  engine/tests use `bought-recommended`) so either spelling counts. */
+function normOutcome(outcome: string | null): string {
+  return (outcome ?? "").replace(/_/g, "-");
+}
+
 /** Outcomes that count as a closed sale (a "bill"). */
 export function isBill(outcome: string | null): boolean {
-  return outcome === "bought-recommended" || outcome === "bought-different";
+  const o = normOutcome(outcome);
+  return o === "bought-recommended" || o === "bought-different";
 }
 
 /** Points awarded for a single completed bill (0 for a non-sale). */
@@ -56,7 +63,7 @@ export function pointsForSession(s: SessionRecord): number {
   if (!isBill(s.outcome)) return 0;
   const ipb = s.itemsPerBill ?? 1;
   let pts = BILL_POINTS + IPB_BONUS * Math.max(0, ipb - 1);
-  if (s.outcome === "bought-recommended") pts += RECO_BONUS;
+  if (normOutcome(s.outcome) === "bought-recommended") pts += RECO_BONUS;
   return Math.round(pts);
 }
 

@@ -419,3 +419,85 @@ export async function getLiveOffers(opts?: { storeId?: string | null }): Promise
   }
   return getJSON<{ offers: Offer[] }>(`${BASE}offers-demo.json`).then((d) => d.offers).catch(() => []);
 }
+
+// ---- customer recall by phone (D.1) ----
+export interface CustomerTagInput {
+  phone: string;
+  name?: string | null;
+  consent?: boolean;
+  premium_tier?: "value" | "mainstream" | "premium" | "luxury" | null;
+  preferred_payment?: "cash" | "card" | "emi" | "upi" | "exchange" | null;
+  home_store_id?: string | null;
+}
+export interface CustomerEvent {
+  type: "visit" | "intent" | "quote" | "recommendation" | "whatsapp" | "call" | "exchange_enquiry" | "purchase" | "service";
+  category?: string | null; brand?: string | null; budget_band?: string | null; sku?: string | null;
+  store_id?: string | null; employee_id?: string | null; session_id?: string | null; amount?: number | null; ts?: string;
+}
+export interface CustomerInfo {
+  customer: { customer_id: string; phone: string; name?: string | null; premium_tier?: string | null; preferred_payment?: string | null; home_store_id?: string | null; last_seen_at?: string | null };
+  prefs: { brand: string; category?: string | null; affinity: string }[];
+  recentEvents: { type: string; category?: string | null; brand?: string | null; budget_band?: string | null; sku?: string | null; ts: string }[];
+  purchases: { total?: number | null; ts?: string | null }[];
+}
+
+const CUST_KEY = "liqo.customers";
+function readLocalCustomers(): Record<string, CustomerInfo> {
+  try { return JSON.parse(localStorage.getItem(CUST_KEY) ?? "{}"); } catch { return {}; }
+}
+function writeLocalCustomers(m: Record<string, CustomerInfo>): void {
+  try { localStorage.setItem(CUST_KEY, JSON.stringify(m)); } catch { /* ignore */ }
+}
+
+/** Recall a customer by phone. Remote: GET /customers/:phone. Offline: localStorage. */
+export async function recallCustomer(phone: string, token?: string | null): Promise<CustomerInfo | null> {
+  if (!/^\d{10}$/.test(phone)) return null;
+  if (IS_REMOTE) {
+    const res = await fetch(`${API_BASE}/customers/${encodeURIComponent(phone)}`, { headers: authHeaders(token) }).catch(() => null);
+    if (!res || !res.ok) return null;
+    const d = (await res.json().catch(() => null)) as CustomerInfo | { customer: null } | null;
+    return d && (d as CustomerInfo).customer ? (d as CustomerInfo) : null;
+  }
+  const local = readLocalCustomers()[phone];
+  if (local) return local;
+  // Offline demo: a couple of known numbers so recall works out of the box.
+  return getJSON<{ customers: Record<string, CustomerInfo> }>(`${BASE}customers-demo.json`)
+    .then((d) => d.customers[phone] ?? null)
+    .catch(() => null);
+}
+
+/** Upsert a customer (consent-gated tagging). Remote: POST /customers. Offline: localStorage. */
+export async function upsertCustomer(rec: CustomerTagInput, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/customers`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
+    return;
+  }
+  const m = readLocalCustomers();
+  const now = new Date().toISOString();
+  const ex = m[rec.phone];
+  m[rec.phone] = {
+    customer: { customer_id: `c-${rec.phone}`, phone: rec.phone, name: rec.name ?? ex?.customer.name ?? null,
+      premium_tier: rec.premium_tier ?? ex?.customer.premium_tier ?? null,
+      preferred_payment: rec.preferred_payment ?? ex?.customer.preferred_payment ?? null,
+      home_store_id: rec.home_store_id ?? ex?.customer.home_store_id ?? null, last_seen_at: now },
+    prefs: ex?.prefs ?? [], recentEvents: ex?.recentEvents ?? [], purchases: ex?.purchases ?? [],
+  };
+  writeLocalCustomers(m);
+}
+
+/** Log a customer touchpoint. Remote: POST /customers/:phone/events. Offline: localStorage. */
+export async function logCustomerEvent(phone: string, ev: CustomerEvent, token?: string | null): Promise<void> {
+  if (!/^\d{10}$/.test(phone)) return;
+  const withTs = { ...ev, ts: ev.ts ?? new Date().toISOString() };
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/customers/${encodeURIComponent(phone)}/events`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(withTs) }).catch(() => {});
+    return;
+  }
+  const m = readLocalCustomers();
+  if (!m[phone]) await upsertCustomer({ phone });
+  const cur = readLocalCustomers();
+  cur[phone].recentEvents = [{ type: ev.type, category: ev.category ?? null, brand: ev.brand ?? null, budget_band: ev.budget_band ?? null, sku: ev.sku ?? null, ts: withTs.ts }, ...(cur[phone].recentEvents ?? [])].slice(0, 20);
+  cur[phone].customer.last_seen_at = withTs.ts;
+  if (ev.brand && !cur[phone].prefs.some((p) => p.brand === ev.brand)) cur[phone].prefs.push({ brand: ev.brand, category: ev.category ?? null, affinity: "likes" });
+  writeLocalCustomers(cur);
+}

@@ -266,7 +266,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   shown_cards   TEXT,                           -- JSON
   chosen        TEXT,                           -- JSON
   attach        TEXT,                           -- JSON
-  outcome       TEXT CHECK (outcome IN ('bought-recommended','bought-different','still-thinking','new-customer') OR outcome IS NULL),
+  outcome       TEXT,                           -- bought_recommended | bought_different | still_thinking (app vocab; not enum-checked to stay tolerant)
   total         INTEGER,
   items_per_bill REAL,
   ts            TEXT,

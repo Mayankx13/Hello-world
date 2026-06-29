@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
-import { getConfig, getQuestionnaire, logSession, IS_REMOTE } from "../lib/api";
+import { getConfig, getQuestionnaire, logSession, upsertCustomer, logCustomerEvent, IS_REMOTE } from "../lib/api";
 import type {
   EngineConfig,
   Lang,
@@ -178,6 +178,16 @@ export default function SalesAssistant({
       ts: new Date().toISOString(),
     };
     void logSession(log);
+    // Recall: remember this touchpoint against the phone so the next visit is tailored.
+    if (/^\d{10}$/.test(state.mobile) && state.picked) {
+      const sold = outcome === "bought_recommended" || outcome === "bought_different";
+      void upsertCustomer({ phone: state.mobile, consent: true, home_store_id: state.storeId, preferred_payment: state.exchange ? "exchange" : null });
+      void logCustomerEvent(state.mobile, {
+        type: sold ? "purchase" : "intent",
+        category: state.category, brand: state.picked.brand, budget_band: state.budgetBand,
+        sku: state.picked.sku, store_id: state.storeId, amount: sold ? total : null,
+      });
+    }
     setLoggedOutcome(true);
   }, [state, attachItems, flatTags]);
 
