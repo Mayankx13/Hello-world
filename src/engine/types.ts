@@ -130,6 +130,19 @@ export interface RecommendRequest {
   lang?: "en" | "hi";
 }
 
+/**
+ * An optional commercial nudge from a live admin offer (offers.boost_weight>0).
+ * Matched by sku (most specific) else brand (+ optional category). `weight` is
+ * added to the matching item's commercial score BEFORE ranking. Display-only
+ * offers (weight 0) are never passed here.
+ */
+export interface EngineBoost {
+  brand?: string;
+  category?: string;
+  sku?: string;
+  weight: number;
+}
+
 export type Tier = "good" | "better" | "best" | "stretch";
 
 export interface RecommendationCard {

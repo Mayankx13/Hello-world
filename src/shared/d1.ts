@@ -51,6 +51,27 @@ interface InventoryRow {
   last_synced_at: string;
 }
 
+// ---------------------------------------------------------------------------
+// Bind-value coercion helpers — shared by the worker route handlers and the DAO
+// so request payloads map to SQL bind values consistently (null-preserving).
+// ---------------------------------------------------------------------------
+/** undefined/null -> NULL, everything else -> string. */
+export function str(v: unknown): string | null {
+  return v == null ? null : String(v);
+}
+/** undefined/null/"" -> NULL, else Number(v). */
+export function num(v: unknown): number | null {
+  return v == null || v === "" ? null : Number(v);
+}
+/** undefined/null -> NULL, else SQLite boolean 0|1. */
+export function boolNum(v: unknown): number | null {
+  return v == null ? null : v ? 1 : 0;
+}
+/** undefined/null -> NULL, else JSON.stringify(v) for TEXT JSON columns. */
+export function jstr(v: unknown): string | null {
+  return v == null ? null : JSON.stringify(v);
+}
+
 export function rowToItem(r: InventoryRow): InventoryItem {
   return {
     id: r.id,
@@ -114,10 +135,6 @@ function itemToBindings(it: InventoryItem): unknown[] {
     it.ageingRank, it.band, boolNum(it.emiEligible), boolNum(it.exchangeEligible),
     it.image, JSON.stringify(it.tags), it.lastSyncedAt,
   ];
-}
-
-function boolNum(b: boolean | null): number | null {
-  return b == null ? null : b ? 1 : 0;
 }
 
 const PLACEHOLDERS = INVENTORY_COLUMNS.map(() => "?").join(", ");

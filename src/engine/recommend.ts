@@ -15,6 +15,7 @@
  * TODO(ml): learn rankingBlend weights from logged session outcomes.
  */
 import type {
+  EngineBoost,
   EngineConfig,
   InventoryItem,
   PriceBandTuple,
@@ -150,6 +151,27 @@ function marginValue(item: InventoryItem, basis: "amount" | "percent"): number {
   return basis === "percent" ? item.marginPct : item.skuMargin;
 }
 
+/**
+ * Live offer nudge: total boost weight to add to an item's commercial score.
+ * A boost matches by sku (most specific) else by brand, with an optional
+ * category narrowing. Weights of all matching boosts sum. Returns 0 (no effect)
+ * when there are no boosts — keeping the engine identical to its un-boosted form.
+ */
+function boostFor(item: InventoryItem, boosts: EngineBoost[] | undefined): number {
+  if (!boosts || boosts.length === 0) return 0;
+  let extra = 0;
+  for (const b of boosts) {
+    if (b.sku) {
+      if (b.sku === item.sku) extra += b.weight;
+      continue; // a sku-scoped boost only ever matches that exact sku
+    }
+    if (b.brand && b.brand !== item.brand) continue;
+    if (b.category && b.category !== item.category) continue;
+    if (b.brand || b.category) extra += b.weight; // ignore an all-NULL boost (no target)
+  }
+  return extra;
+}
+
 function brandRank(item: InventoryItem, parsed: ParsedAnswers, cfg: EngineConfig): number {
   // Tie-breaker: customer-preferred brand first, then CEO priority order.
   if (parsed.preferredBrands.includes(item.brand)) return -1;
@@ -174,6 +196,7 @@ function scoreSet(
   candidates: { item: InventoryItem; matched: string[] }[],
   parsed: ParsedAnswers,
   cfg: EngineConfig,
+  boosts?: EngineBoost[],
 ): ScoredItem[] {
   const blend = cfg.rankingBlend;
   const slope = cfg.ageingModel.slope;
@@ -190,7 +213,10 @@ function scoreSet(
   return candidates.map(({ item, matched }) => {
     const normVolume = weightedVol(item) / maxVol;
     const normMargin = marginValue(item, blend.marginBasis) / maxMargin;
-    const commercialScore = blend.volumeWeight * normVolume + (1 - blend.volumeWeight) * normMargin;
+    // Live offer boost is added to the commercial score BEFORE ranking, so a
+    // pushed brand/sku rises within its tercile. No-op when no boosts apply.
+    const commercialScore =
+      blend.volumeWeight * normVolume + (1 - blend.volumeWeight) * normMargin + boostFor(item, boosts);
 
     const soft = softMatches(item, parsed);
     const matchedFitTags = dedupe([...matched, ...soft]);
@@ -323,6 +349,7 @@ export function recommend(
   req: RecommendRequest,
   inventory: InventoryItem[],
   cfg: EngineConfig,
+  boosts?: EngineBoost[],
 ): RecommendResult {
   const lang = req.lang ?? "en";
   const parsed = parseAnswers(req);
@@ -360,7 +387,7 @@ export function recommend(
   }
 
   // ---- Stage 2: commercial ranking, normalised within candidate set. ----
-  const scored = scoreSet(candidates, parsed, cfg);
+  const scored = scoreSet(candidates, parsed, cfg, boosts);
   const cmp = makeComparator(parsed, cfg);
   const syncedAt = inventory.find((i) => i.category === req.category)?.lastSyncedAt ?? null;
 

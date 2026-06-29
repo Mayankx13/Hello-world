@@ -13,11 +13,12 @@
  * (Seam for live reads later: Cloudflare Hyperdrive in front of getRawInventory.)
  */
 import { recommend } from "../../src/engine/recommend";
-import type { Category, EngineConfig, RecommendRequest, RecommendResult, RecommendationCard } from "../../src/engine/types";
+import type { Category, EngineBoost, EngineConfig, RecommendRequest, RecommendResult, RecommendationCard } from "../../src/engine/types";
 import { computeLeaderboard, isBill, type SessionRecord, type RosterEntry, type LeaderboardRow } from "../../src/engine/points";
-import { loadInventory, type D1Like } from "../../src/shared/d1";
+import { loadInventory, str, num, boolNum, jstr, type D1Like } from "../../src/shared/d1";
 import { loadConfig, saveConfig, loadQuestionnaire, saveQuestionnaire } from "../../src/shared/config";
 import { authorRationales, llmEnabled, type LlmEnv, type ExplainCard } from "./llm";
+import * as dao from "./dao";
 import usersFile from "../../data/users.json";
 import leaderboardFile from "../../data/leaderboard.json";
 
@@ -77,6 +78,61 @@ export default {
       if (pathname === "/questionnaire" && method === "PUT") return handlePutQuestionnaire(req, env);
       if (pathname === "/admin/sessions/export" && method === "GET") return handleSessionsExport(req, env, url);
 
+      // --- customers (recall + DPDP) ---
+      if (pathname === "/customers" && method === "POST") return handleUpsertCustomer(req, env);
+      const custEvents = matchParam(pathname, "/customers/", "/events");
+      if (custEvents && method === "POST") return handleAddCustomerEvent(req, env, custEvents);
+      const custBrand = matchParam(pathname, "/customers/", "/brand");
+      if (custBrand && method === "POST") return handleAddBrandPref(req, env, custBrand);
+      const custPhone = matchParam(pathname, "/customers/");
+      if (custPhone && method === "GET") return handleGetCustomer(req, env, custPhone);
+      if (custPhone && method === "DELETE") return handleEraseCustomer(req, env, custPhone);
+
+      // --- offers (live feed is PUBLIC; management is admin) ---
+      if (pathname === "/offers" && method === "GET") return handleListLiveOffers(env, url);
+      if (pathname === "/offers/all" && method === "GET") return handleListAllOffers(req, env);
+      if (pathname === "/offers" && method === "POST") return handleCreateOffer(req, env);
+      const offerId = matchParam(pathname, "/offers/");
+      if (offerId && method === "DELETE") return handleDeleteOffer(req, env, offerId);
+
+      // --- employees ---
+      if (pathname === "/employees" && method === "GET") return handleListEmployees(req, env, url);
+      if (pathname === "/employees" && method === "POST") return handleUpsertEmployee(req, env);
+      const empId = matchParam(pathname, "/employees/");
+      if (empId && method === "PATCH") return handleSetEmployeeStatus(req, env, empId);
+
+      // --- attendance ---
+      if (pathname === "/attendance/summary" && method === "GET") return handleAttendanceSummary(req, env, url);
+      if (pathname === "/attendance" && method === "GET") return handleListAttendance(req, env, url);
+      if (pathname === "/attendance" && method === "POST") return handleMarkAttendance(req, env);
+
+      // --- leaves ---
+      if (pathname === "/leaves" && method === "GET") return handleListLeaves(req, env, url);
+      if (pathname === "/leaves" && method === "POST") return handleCreateLeave(req, env);
+      const leaveId = matchParam(pathname, "/leaves/");
+      if (leaveId && method === "PATCH") return handleDecideLeave(req, env, leaveId);
+
+      // --- milestones + incentives ---
+      if (pathname === "/milestones" && method === "GET") return handleListMilestones(req, env);
+      if (pathname === "/incentives" && method === "GET") return handleListIncentives(req, env, url);
+      if (pathname === "/incentives" && method === "POST") return handleAddIncentive(req, env);
+
+      // --- feedback (POST is PUBLIC for anonymous) ---
+      if (pathname === "/feedback" && method === "GET") return handleListFeedback(req, env, url);
+      if (pathname === "/feedback" && method === "POST") return handleAddFeedback(req, env);
+
+      // --- demand ---
+      if (pathname === "/demand" && method === "GET") return handleListDemand(req, env, url);
+      if (pathname === "/demand" && method === "POST") return handleAddDemand(req, env);
+
+      // --- engine test harness ---
+      if (pathname === "/engine/test" && method === "POST") return handleEngineTest(req, env);
+
+      // --- analytics (views) ---
+      if (pathname === "/analytics/store-daily" && method === "GET") return handleAnalyticsStoreDaily(req, env, url);
+      if (pathname === "/analytics/demand" && method === "GET") return handleAnalyticsDemand(req, env, url);
+      if (pathname === "/analytics/employee-month" && method === "GET") return handleAnalyticsEmployeeMonth(req, env, url);
+
       return json(env, { error: "not_found", path: pathname }, 404);
     } catch (err) {
       return json(env, { error: "internal", message: String((err as Error)?.message ?? err) }, 500);
@@ -93,12 +149,14 @@ async function handleRecommend(req: Request, env: Env): Promise<Response> {
   if (err) return json(env, { error: "bad_request", message: err }, 400);
 
   const reqBody = body as RecommendRequest;
-  const [cfg, inventory] = await Promise.all([
+  const [cfg, inventory, boosts] = await Promise.all([
     loadConfig(env.DB),
     // Only this store + category is needed to score one request.
     loadInventory(env.DB, { storeId: reqBody.storeId, category: reqBody.category }),
+    // Live admin offer boosts (boost_weight>0) nudge ranking for this store.
+    loadBoosts(env.DB, reqBody.storeId),
   ]);
-  const result = recommend(reqBody, inventory, cfg);
+  const result = recommend(reqBody, inventory, cfg, boosts);
   await enrichRationales(env, result, reqBody);
   return json(env, result);
 }
@@ -386,6 +444,439 @@ function toCSV(rows: Record<string, unknown>[]): string {
   return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
 }
 
+// ===========================================================================
+// Retail data endpoints (customers, offers, HR, feedback, demand, analytics).
+// Read paths map snake_case DAO rows to the API as-is; writes coerce via dao's
+// *Input types. Path params come from url.pathname (see matchParam).
+// ===========================================================================
+const STAFF_ROLES = ["manager", "salesperson"];
+const MANAGER = ["manager"];
+
+const unauthorized = (env: Env) => json(env, { error: "unauthorized" }, 401);
+const badRequest = (env: Env, message: string) => json(env, { error: "bad_request", message }, 400);
+const nowISO = () => new Date().toISOString();
+
+/** Read a JSON body as a loose record (never throws; {} on empty/invalid). */
+async function readBody(req: Request): Promise<Record<string, unknown>> {
+  return (await req.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+/**
+ * Match a single path param between `prefix` and optional `suffix`.
+ * Returns the URL-decoded segment, or null when the path doesn't fit or the
+ * segment is empty / contains a "/" (so "/customers/:phone" never swallows
+ * "/customers/:phone/events"). Pure string parsing — no router dependency.
+ */
+function matchParam(pathname: string, prefix: string, suffix = ""): string | null {
+  if (!pathname.startsWith(prefix)) return null;
+  const rest = pathname.slice(prefix.length);
+  const inner = suffix ? (rest.endsWith(suffix) ? rest.slice(0, -suffix.length) : null) : rest;
+  if (inner == null || inner.length === 0 || inner.includes("/")) return null;
+  try {
+    return decodeURIComponent(inner);
+  } catch {
+    return inner;
+  }
+}
+
+// --- customers ---
+async function handleGetCustomer(req: Request, env: Env, phone: string): Promise<Response> {
+  // Recall: any logged-in staff (admin / manager / salesperson).
+  if (!(await checkRole(req, env, STAFF_ROLES))) return unauthorized(env);
+  const bundle = await dao.getCustomerByPhone(env.DB, phone);
+  if (!bundle) return json(env, { error: "not_found", phone }, 404);
+  return json(env, bundle);
+}
+
+async function handleUpsertCustomer(req: Request, env: Env): Promise<Response> {
+  if (!(await checkRole(req, env, STAFF_ROLES))) return unauthorized(env);
+  const b = await readBody(req);
+  const phone = str(b.phone);
+  if (!phone) return badRequest(env, "phone required");
+  const customerId = await dao.upsertCustomer(env.DB, {
+    phone,
+    name: str(b.name),
+    email: str(b.email),
+    consent: !!b.consent,
+    premiumTier: (b.premium_tier ?? b.premiumTier) as dao.CustomerInput["premiumTier"],
+    preferredPayment: (b.preferred_payment ?? b.preferredPayment) as dao.CustomerInput["preferredPayment"],
+    homeStoreId: str(b.home_store_id ?? b.homeStoreId),
+    nowISO: nowISO(),
+  });
+  return json(env, { ok: true, customerId });
+}
+
+async function handleAddCustomerEvent(req: Request, env: Env, phone: string): Promise<Response> {
+  if (!(await checkRole(req, env, STAFF_ROLES))) return unauthorized(env);
+  const b = await readBody(req);
+  if (!b.type) return badRequest(env, "type required");
+  const eventId = await dao.addCustomerEvent(env.DB, {
+    customerId: "c-" + phone,
+    type: b.type as dao.CustomerEventInput["type"],
+    category: str(b.category),
+    brand: str(b.brand),
+    budgetBand: str(b.budget_band ?? b.budgetBand),
+    sku: str(b.sku),
+    storeId: str(b.store_id ?? b.storeId),
+    employeeId: str(b.employee_id ?? b.employeeId),
+    sessionId: str(b.session_id ?? b.sessionId),
+    amount: num(b.amount),
+    meta: b.meta,
+    ts: str(b.ts) ?? nowISO(),
+  });
+  return json(env, { ok: true, eventId });
+}
+
+async function handleAddBrandPref(req: Request, env: Env, phone: string): Promise<Response> {
+  if (!(await checkRole(req, env, STAFF_ROLES))) return unauthorized(env);
+  const b = await readBody(req);
+  const brand = str(b.brand);
+  if (!brand) return badRequest(env, "brand required");
+  await dao.addBrandPref(env.DB, {
+    customerId: "c-" + phone,
+    brand,
+    category: str(b.category),
+    affinity: (b.affinity ?? "likes") as dao.BrandPrefInput["affinity"],
+  });
+  return json(env, { ok: true });
+}
+
+async function handleEraseCustomer(req: Request, env: Env, phone: string): Promise<Response> {
+  // DPDP erase: admin or manager only.
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  await dao.eraseCustomer(env.DB, phone);
+  return json(env, { ok: true, erased: phone });
+}
+
+// --- offers ---
+async function handleListLiveOffers(env: Env, url: URL): Promise<Response> {
+  // PUBLIC — app startup loads the live offer strip.
+  const storeId = url.searchParams.get("storeId") ?? undefined;
+  const offers = await dao.listLiveOffers(env.DB, { storeId, nowISO: nowISO() });
+  return json(env, { offers });
+}
+
+async function handleListAllOffers(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  return json(env, { offers: await dao.listAllOffers(env.DB) });
+}
+
+async function handleCreateOffer(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  const b = await readBody(req);
+  const offerId = str(b.offer_id ?? b.offerId) ?? "off-" + crypto.randomUUID().slice(0, 8);
+  const title = str(b.title);
+  const startsAt = str(b.starts_at ?? b.startsAt);
+  const endsAt = str(b.ends_at ?? b.endsAt);
+  if (!title) return badRequest(env, "title required");
+  if (!startsAt || !endsAt) return badRequest(env, "starts_at and ends_at required");
+  await dao.createOffer(env.DB, {
+    offerId,
+    title,
+    description: str(b.description),
+    brand: str(b.brand),
+    category: str(b.category),
+    sku: str(b.sku),
+    storeId: str(b.store_id ?? b.storeId),
+    discountPct: num(b.discount_pct ?? b.discountPct),
+    offerPrice: num(b.offer_price ?? b.offerPrice),
+    image: str(b.image),
+    startsAt,
+    endsAt,
+    boostWeight: num(b.boost_weight ?? b.boostWeight) ?? 0,
+    active: b.active == null ? true : !!b.active,
+    createdBy: str(b.created_by ?? b.createdBy),
+  });
+  return json(env, { ok: true, offerId });
+}
+
+async function handleDeleteOffer(req: Request, env: Env, id: string): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  await dao.deleteOffer(env.DB, id);
+  return json(env, { ok: true, deleted: id });
+}
+
+// --- employees ---
+async function handleListEmployees(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const employees = await dao.listEmployees(env.DB, {
+    storeId: url.searchParams.get("storeId") ?? undefined,
+    role: url.searchParams.get("role") ?? undefined,
+  });
+  return json(env, { employees });
+}
+
+async function handleUpsertEmployee(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  const b = await readBody(req);
+  const employeeId = str(b.employee_id ?? b.employeeId);
+  const name = str(b.name);
+  const role = b.role as dao.EmployeeInput["role"];
+  if (!employeeId || !name || !role) return badRequest(env, "employee_id, name and role required");
+  await dao.upsertEmployee(env.DB, {
+    employeeId,
+    name,
+    email: str(b.email),
+    phone: str(b.phone),
+    role,
+    storeId: str(b.store_id ?? b.storeId),
+    title: str(b.title),
+    status: (b.status ?? "active") as dao.EmployeeInput["status"],
+    passHash: str(b.pass_hash ?? b.passHash),
+    joinedAt: str(b.joined_at ?? b.joinedAt),
+    nowISO: nowISO(),
+  });
+  return json(env, { ok: true, employeeId });
+}
+
+async function handleSetEmployeeStatus(req: Request, env: Env, id: string): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  const b = await readBody(req);
+  const status = b.status;
+  if (status !== "active" && status !== "inactive") return badRequest(env, "status active|inactive required");
+  await dao.setEmployeeStatus(env.DB, id, status);
+  return json(env, { ok: true, employeeId: id, status });
+}
+
+// --- attendance ---
+async function handleListAttendance(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const attendance = await dao.listAttendance(env.DB, {
+    storeId: url.searchParams.get("storeId") ?? undefined,
+    date: url.searchParams.get("date") ?? undefined,
+    employeeId: url.searchParams.get("employeeId") ?? undefined,
+  });
+  return json(env, { attendance });
+}
+
+async function handleAttendanceSummary(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const storeId = url.searchParams.get("storeId");
+  const date = url.searchParams.get("date");
+  if (!storeId || !date) return badRequest(env, "storeId and date required");
+  return json(env, await dao.attendanceSummary(env.DB, storeId, date));
+}
+
+async function handleMarkAttendance(req: Request, env: Env): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const b = await readBody(req);
+  const employeeId = str(b.employee_id ?? b.employeeId);
+  const date = str(b.date);
+  const status = b.status as dao.AttendanceInput["status"];
+  if (!employeeId || !date || !status) return badRequest(env, "employee_id, date and status required");
+  await dao.markAttendance(env.DB, {
+    employeeId,
+    storeId: str(b.store_id ?? b.storeId),
+    date,
+    status,
+    checkIn: str(b.check_in ?? b.checkIn),
+    checkOut: str(b.check_out ?? b.checkOut),
+    note: str(b.note),
+    markedBy: str(b.marked_by ?? b.markedBy),
+  });
+  return json(env, { ok: true });
+}
+
+// --- leaves ---
+async function handleListLeaves(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const leaves = await dao.listLeaves(env.DB, {
+    employeeId: url.searchParams.get("employeeId") ?? undefined,
+    status: url.searchParams.get("status") ?? undefined,
+    storeId: url.searchParams.get("storeId") ?? undefined,
+  });
+  return json(env, { leaves });
+}
+
+async function handleCreateLeave(req: Request, env: Env): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const b = await readBody(req);
+  const employeeId = str(b.employee_id ?? b.employeeId);
+  const type = b.type as dao.LeaveInput["type"];
+  const fromDate = str(b.from_date ?? b.fromDate);
+  const toDate = str(b.to_date ?? b.toDate);
+  if (!employeeId || !type || !fromDate || !toDate) return badRequest(env, "employee_id, type, from_date and to_date required");
+  const id = await dao.createLeave(env.DB, {
+    employeeId,
+    type,
+    fromDate,
+    toDate,
+    days: num(b.days) ?? undefined,
+    reason: str(b.reason),
+  });
+  return json(env, { ok: true, id });
+}
+
+async function handleDecideLeave(req: Request, env: Env, idStr: string): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const id = Number(idStr);
+  if (!Number.isFinite(id)) return badRequest(env, "numeric leave id required");
+  const b = await readBody(req);
+  const status = b.status;
+  if (status !== "approved" && status !== "rejected" && status !== "cancelled") {
+    return badRequest(env, "status approved|rejected|cancelled required");
+  }
+  const approverId = str(b.approver_id ?? b.approverId) ?? "";
+  await dao.decideLeave(env.DB, id, status, approverId, nowISO());
+  return json(env, { ok: true, id, status });
+}
+
+// --- milestones + incentives ---
+async function handleListMilestones(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  return json(env, { milestones: await dao.listMilestones(env.DB) });
+}
+
+async function handleListIncentives(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  const incentives = await dao.listIncentives(env.DB, {
+    employeeId: url.searchParams.get("employeeId") ?? undefined,
+    period: url.searchParams.get("period") ?? undefined,
+  });
+  return json(env, { incentives });
+}
+
+async function handleAddIncentive(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  const b = await readBody(req);
+  const employeeId = str(b.employee_id ?? b.employeeId);
+  const period = str(b.period);
+  if (!employeeId || !period) return badRequest(env, "employee_id and period required");
+  const id = await dao.addIncentive(env.DB, {
+    employeeId,
+    milestoneId: str(b.milestone_id ?? b.milestoneId),
+    period,
+    points: num(b.points) ?? undefined,
+    amountInr: num(b.amount_inr ?? b.amountInr) ?? undefined,
+    reason: str(b.reason),
+    status: (b.status ?? undefined) as dao.IncentiveInput["status"],
+  });
+  return json(env, { ok: true, id });
+}
+
+// --- feedback ---
+async function handleListFeedback(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const feedback = await dao.listFeedback(env.DB, { storeId: url.searchParams.get("storeId") ?? undefined });
+  return json(env, { feedback });
+}
+
+async function handleAddFeedback(req: Request, env: Env): Promise<Response> {
+  // PUBLIC — allow anonymous submissions (no auth gate).
+  const b = await readBody(req);
+  const category = b.category as dao.FeedbackInput["category"];
+  if (!category) return badRequest(env, "category required");
+  const id = await dao.addFeedback(env.DB, {
+    employeeId: str(b.employee_id ?? b.employeeId),
+    storeId: str(b.store_id ?? b.storeId),
+    category,
+    rating: num(b.rating),
+    message: str(b.message),
+    anonymous: !!b.anonymous,
+  });
+  return json(env, { ok: true, id });
+}
+
+// --- demand ---
+async function handleListDemand(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const demand = await dao.listDemand(env.DB, { storeId: url.searchParams.get("storeId") ?? undefined });
+  return json(env, { demand });
+}
+
+async function handleAddDemand(req: Request, env: Env): Promise<Response> {
+  const b = await readBody(req);
+  const id = await dao.addDemandRequest(env.DB, {
+    storeId: str(b.store_id ?? b.storeId),
+    customerId: str(b.customer_id ?? b.customerId),
+    employeeId: str(b.employee_id ?? b.employeeId),
+    category: str(b.category),
+    brand: str(b.brand),
+    sku: str(b.sku),
+    budgetBand: str(b.budget_band ?? b.budgetBand),
+    note: str(b.note),
+    ts: str(b.ts) ?? nowISO(),
+  });
+  return json(env, { ok: true, id });
+}
+
+// --- engine test harness (admin) ---
+/**
+ * Run the PURE engine verbosely for tuning: loads config + this store/category's
+ * inventory (exactly like handleRecommend), runs recommend(), and returns the
+ * result plus every eligible candidate with its _score. Read-only.
+ */
+async function handleEngineTest(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  const body = (await req.json().catch(() => ({}))) as Partial<RecommendRequest>;
+  const err = validateRecommend(body);
+  if (err) return badRequest(env, err);
+
+  const reqBody = body as RecommendRequest;
+  const [cfg, inventory, boosts] = await Promise.all([
+    loadConfig(env.DB),
+    loadInventory(env.DB, { storeId: reqBody.storeId, category: reqBody.category }),
+    loadBoosts(env.DB, reqBody.storeId),
+  ]);
+  const result = recommend(reqBody, inventory, cfg, boosts);
+
+  // Mirror the engine's hard gate so the caller sees the eligible set + scores.
+  const band = cfg.priceBands[reqBody.category]?.[reqBody.budgetBand];
+  const maxPrice = band ? (reqBody.stretch ? band[1] * (1 + cfg.stretchThreshold) : band[1]) : Infinity;
+  const recommendable = cfg.transform.recommendableChannels;
+  const excluded = new Set(cfg.brandExclusions[reqBody.category] ?? []);
+  const cards = [result.good, result.better, result.best, result.stretch]
+    .filter((c): c is RecommendationCard => Boolean(c))
+    .map((c) => ({ tier: c.tier, sku: c.sku, brand: c.brand, price: c.price, _score: c._score }));
+  const eligibleCount = inventory.filter(
+    (it) =>
+      it.category === reqBody.category &&
+      it.storeId === reqBody.storeId &&
+      recommendable.includes(it.channel) &&
+      it.stockQty > 0 &&
+      !excluded.has(it.brand) &&
+      (!band || (it.price >= band[0] && it.price <= maxPrice)),
+  ).length;
+
+  return json(env, { result, meta: result.meta, eligibleCount, scores: cards, boostsApplied: boosts.length });
+}
+
+// --- analytics (views) ---
+async function handleAnalyticsStoreDaily(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const rows = await dao.storeDaily(env.DB, {
+    storeId: url.searchParams.get("storeId") ?? undefined,
+    days: num(url.searchParams.get("days")) ?? undefined,
+  });
+  return json(env, { rows });
+}
+
+async function handleAnalyticsDemand(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const rows = await dao.demandByCategory(env.DB, { storeId: url.searchParams.get("storeId") ?? undefined });
+  return json(env, { rows });
+}
+
+async function handleAnalyticsEmployeeMonth(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  const rows = await dao.employeeMonth(env.DB, {
+    month: url.searchParams.get("month") ?? undefined,
+    storeId: url.searchParams.get("storeId") ?? undefined,
+  });
+  return json(env, { rows });
+}
+
+/** Live offer boosts for a store, mapped from DAO rows to the engine's shape. */
+async function loadBoosts(db: D1Like, storeId: string): Promise<EngineBoost[]> {
+  const rows = await dao.activeBoosts(db, { storeId, nowISO: nowISO() });
+  return rows.map((r) => ({
+    brand: r.brand ?? undefined,
+    category: r.category ?? undefined,
+    sku: r.sku ?? undefined,
+    weight: r.weight,
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
@@ -397,6 +888,21 @@ async function checkAdmin(req: Request, env: Env): Promise<boolean> {
   if (env.ADMIN_TOKEN && token === env.ADMIN_TOKEN) return true;
   const payload = await verifyToken(env, token);
   return payload?.role === "admin";
+}
+
+/**
+ * Role gate for staff endpoints: passes when the ADMIN_TOKEN secret is presented
+ * OR the bearer is a valid signed token whose role is in `roles`. Admin is always
+ * accepted (superset), so callers need only list the additional roles allowed.
+ */
+async function checkRole(req: Request, env: Env, roles: string[]): Promise<boolean> {
+  const auth = req.headers.get("authorization") ?? "";
+  const token = auth.replace(/^Bearer\s+/i, "").trim() || req.headers.get("x-admin-token") || "";
+  if (!token) return false;
+  if (env.ADMIN_TOKEN && token === env.ADMIN_TOKEN) return true;
+  const payload = await verifyToken(env, token);
+  const role = payload?.role;
+  return !!role && (role === "admin" || roles.includes(role));
 }
 
 async function verifyToken(env: Env, token: string): Promise<{ role?: string; sub?: string } | null> {
@@ -424,7 +930,7 @@ async function verifyToken(env: Env, token: string): Promise<{ role?: string; su
 function corsHeaders(env: Env): Record<string, string> {
   return {
     "access-control-allow-origin": env.ALLOWED_ORIGIN || "*",
-    "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "content-type, authorization, x-admin-token",
     "access-control-max-age": "86400",
   };
@@ -439,16 +945,4 @@ function json(env: Env, body: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json; charset=utf-8" },
   }));
-}
-function str(v: unknown): string | null {
-  return v == null ? null : String(v);
-}
-function num(v: unknown): number | null {
-  return v == null || v === "" ? null : Number(v);
-}
-function boolNum(v: unknown): number | null {
-  return v == null ? null : v ? 1 : 0;
-}
-function jstr(v: unknown): string | null {
-  return v == null ? null : JSON.stringify(v);
 }
