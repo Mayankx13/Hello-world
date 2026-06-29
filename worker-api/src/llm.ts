@@ -107,3 +107,62 @@ export async function authorRationales(env: LlmEnv, input: ExplainInput): Promis
     return fallback; // never break the journey on an LLM error
   }
 }
+
+// ---------------------------------------------------------------------------
+// Phase D.3 — LLM-suggested questionnaire improvements.
+// Analyses aggregate session stats + the current questionnaire and proposes
+// concrete question/option changes that help the shopper make an EDUCATED
+// purchase. Admin reviews + approves in the questionnaire editor; nothing is
+// applied automatically. Returns [] when the LLM is disabled or fails.
+// ---------------------------------------------------------------------------
+export interface QuestionStat {
+  category: string;
+  sessions: number;
+  boughtRate: number;  // 0..1 closed-sale rate
+  dropRate: number;    // 0..1 sessions with no pick
+  topTags: { tag: string; count: number }[];
+}
+export interface SuggestInput {
+  questionnaire: unknown;
+  stats: QuestionStat[];
+  lang: "en" | "hi";
+}
+export interface QuestionSuggestion {
+  category: string;
+  action: "add" | "reword" | "improve_options";
+  questionId?: string;
+  prompt: { en: string; hi: string };
+  options: { label: { en: string; hi: string }; tags: string[] }[];
+  rationale: string;
+}
+
+export async function suggestQuestions(env: LlmEnv, input: SuggestInput): Promise<QuestionSuggestion[]> {
+  if (!llmEnabled(env)) return [];
+  try {
+    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    const system = [
+      "You are LIQO's in-store questionnaire designer for a North-India electronics retailer (AC, TV, refrigerator, washing machine).",
+      "GOAL: help the SHOPPER make an educated purchase. Good questions surface the few attributes that actually change which model fits — room size & sun exposure (AC), family size & usage (fridge/washer), viewing distance & light (TV), and honest budget — in plain, warm language.",
+      "You are given the current questionnaire (with each option's engine tags) and aggregate session stats (which categories convert vs drop off, and the most-picked answer tags).",
+      "Propose AT MOST 4 concrete, high-value improvements: a new question, a reworded prompt, or better/clearer options. REUSE existing engine tags from the questionnaire wherever possible (new tags only if truly needed, lowercase_snake).",
+      "Each suggestion: { category, action: 'add'|'reword'|'improve_options', questionId?, prompt:{en,hi}, options:[{label:{en,hi}, tags:[]}], rationale }. Hindi must be natural Devanagari, sentence case.",
+      'Return ONLY JSON: {"suggestions":[ ... ]}. No preamble.',
+    ].join("\n");
+    const resp = await client.messages.create(
+      {
+        model: env.LLM_MODEL || DEFAULT_MODEL,
+        max_tokens: 1600,
+        temperature: 0.5,
+        system,
+        messages: [{ role: "user", content: JSON.stringify({ lang: input.lang, stats: input.stats, questionnaire: input.questionnaire }) }],
+      },
+      { timeout: 12000 },
+    );
+    const text = resp.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
+    const parsed = JSON.parse(extractJson(text)) as { suggestions?: unknown };
+    const list = Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
+    return list.filter((s): s is QuestionSuggestion => !!s && typeof s === "object" && typeof (s as QuestionSuggestion).category === "string").slice(0, 4);
+  } catch {
+    return [];
+  }
+}

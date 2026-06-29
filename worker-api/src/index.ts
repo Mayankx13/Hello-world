@@ -17,7 +17,7 @@ import type { Category, EngineBoost, EngineConfig, RecommendRequest, RecommendRe
 import { computeLeaderboard, isBill, type SessionRecord, type RosterEntry, type LeaderboardRow } from "../../src/engine/points";
 import { loadInventory, str, num, boolNum, jstr, type D1Like } from "../../src/shared/d1";
 import { loadConfig, saveConfig, loadQuestionnaire, saveQuestionnaire } from "../../src/shared/config";
-import { authorRationales, llmEnabled, type LlmEnv, type ExplainCard } from "./llm";
+import { authorRationales, llmEnabled, suggestQuestions, type LlmEnv, type ExplainCard, type QuestionStat } from "./llm";
 import * as dao from "./dao";
 import usersFile from "../../data/users.json";
 import leaderboardFile from "../../data/leaderboard.json";
@@ -76,6 +76,7 @@ export default {
       if (pathname === "/config" && method === "PUT") return handlePutConfig(req, env);
       if (pathname === "/questionnaire" && method === "GET") return handleGetQuestionnaire(env);
       if (pathname === "/questionnaire" && method === "PUT") return handlePutQuestionnaire(req, env);
+      if (pathname === "/questions/suggest" && method === "POST") return handleSuggestQuestions(req, env);
       if (pathname === "/admin/sessions/export" && method === "GET") return handleSessionsExport(req, env, url);
 
       // --- customers (recall + DPDP) ---
@@ -406,6 +407,42 @@ async function handlePutQuestionnaire(req: Request, env: Env): Promise<Response>
   }
   await saveQuestionnaire(env.DB, q);
   return json(env, { ok: true });
+}
+
+// POST /questions/suggest (admin) — Phase D.3: aggregate session stats, ask the
+// LLM to propose questionnaire improvements toward an educated purchase. Returns
+// drafts for the admin to review in the editor; nothing is applied automatically.
+async function handleSuggestQuestions(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return json(env, { error: "unauthorized" }, 401);
+  const body = (await req.json().catch(() => ({}))) as { lang?: string };
+  const lang = body.lang === "hi" ? "hi" : "en";
+  const questionnaire = await loadQuestionnaire(env.DB);
+  type SRow = { category: string; outcome: string | null; chosen: string | null; answers: string | null };
+  const { results } = await env.DB
+    .prepare("SELECT category, outcome, chosen, answers FROM sessions WHERE category IS NOT NULL ORDER BY created_at DESC LIMIT 500")
+    .all<SRow>()
+    .catch(() => ({ results: [] as SRow[] }));
+  const byCat = new Map<string, { sessions: number; bought: number; drop: number; tags: Map<string, number> }>();
+  for (const r of results) {
+    const a = byCat.get(r.category) ?? { sessions: 0, bought: 0, drop: 0, tags: new Map<string, number>() };
+    a.sessions++;
+    const o = (r.outcome ?? "").replace(/_/g, "-");
+    if (o === "bought-recommended" || o === "bought-different") a.bought++;
+    let chosenSku = "";
+    try { chosenSku = (JSON.parse(r.chosen ?? "{}") as { sku?: string }).sku ?? ""; } catch { /* ignore */ }
+    if (!chosenSku) a.drop++;
+    try { for (const tg of JSON.parse(r.answers ?? "[]") as string[]) a.tags.set(tg, (a.tags.get(tg) ?? 0) + 1); } catch { /* ignore */ }
+    byCat.set(r.category, a);
+  }
+  const stats: QuestionStat[] = [...byCat.entries()].map(([category, a]) => ({
+    category,
+    sessions: a.sessions,
+    boughtRate: a.sessions ? Number((a.bought / a.sessions).toFixed(2)) : 0,
+    dropRate: a.sessions ? Number((a.drop / a.sessions).toFixed(2)) : 0,
+    topTags: [...a.tags.entries()].sort((x, y) => y[1] - x[1]).slice(0, 8).map(([tag, count]) => ({ tag, count })),
+  }));
+  const suggestions = await suggestQuestions(env, { questionnaire, stats, lang });
+  return json(env, { suggestions, stats, enabled: llmEnabled(env) });
 }
 
 function validateConfig(c: EngineConfig | null): string | null {

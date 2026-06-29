@@ -66,6 +66,15 @@ async function getJSON<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Authenticated GET — sends the Bearer token for admin/manager-gated reads. */
+async function getJSONAuth<T>(path: string, token?: string | null): Promise<T> {
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(path, { headers });
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
 // ---- app-shell data (live config + questionnaire are editable from admin) ----
 let _stores: Promise<Store[]> | null = null;
 let _inventory: Promise<InventoryItem[]> | null = null;
@@ -500,4 +509,432 @@ export async function logCustomerEvent(phone: string, ev: CustomerEvent, token?:
   cur[phone].customer.last_seen_at = withTs.ts;
   if (ev.brand && !cur[phone].prefs.some((p) => p.brand === ev.brand)) cur[phone].prefs.push({ brand: ev.brand, category: ev.category ?? null, affinity: "likes" });
   writeLocalCustomers(cur);
+}
+
+// ===========================================================================
+// Admin frontend — People (employees, attendance, leaves), Incentives,
+// Feedback and Offers management.
+//
+// Row types mirror the DAO row shapes verbatim (snake_case): the API maps D1
+// rows to JSON as-is. Every read has a graceful OFFLINE path (bundled JSON or
+// localStorage) so the demo renders without a Worker; writes persist to
+// localStorage offline. None of these ever throw in offline mode.
+// ===========================================================================
+
+/** Local-only helpers for the offline demo (HR rows kept in localStorage). */
+function readLocal<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function writeLocal(key: string, value: unknown): void {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+}
+
+// ---- employees (People · Employees tab) ----
+export interface Employee {
+  employee_id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  role: Role;
+  store_id?: string | null;
+  title?: string | null;
+  status: "active" | "inactive";
+  joined_at?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+}
+export interface EmployeeInput {
+  employee_id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  role: Role;
+  store_id?: string | null;
+  title?: string | null;
+  status?: "active" | "inactive";
+}
+
+const EMP_KEY = "liqo.employees";
+
+/** Offline employee roster: localStorage overlay on top of the bundled demo. */
+async function localEmployees(): Promise<Employee[]> {
+  const seed = await getJSON<{ employees: Employee[] }>(`${BASE}employees-demo.json`).then((d) => d.employees).catch(() => []);
+  const overlay = readLocal<Record<string, Employee>>(EMP_KEY, {});
+  const byId = new Map<string, Employee>(seed.map((e) => [e.employee_id, e]));
+  for (const e of Object.values(overlay)) byId.set(e.employee_id, e);
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listEmployees(opts?: { storeId?: string | null; role?: Role | null }, token?: string | null): Promise<Employee[]> {
+  let rows: Employee[];
+  if (IS_REMOTE) {
+    const qs = new URLSearchParams();
+    if (opts?.storeId) qs.set("storeId", opts.storeId);
+    if (opts?.role) qs.set("role", opts.role);
+    const u = `${API_BASE}/employees${qs.toString() ? `?${qs}` : ""}`;
+    rows = await getJSONAuth<{ employees: Employee[] }>(u, token).then((d) => d.employees).catch(() => []);
+  } else {
+    rows = await localEmployees();
+    if (opts?.storeId) rows = rows.filter((e) => e.store_id === opts.storeId);
+    if (opts?.role) rows = rows.filter((e) => e.role === opts.role);
+  }
+  return rows;
+}
+
+/** Create/update an employee. Remote: POST /employees. Offline: localStorage. */
+export async function saveEmployee(rec: EmployeeInput, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/employees`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
+    return;
+  }
+  const m = readLocal<Record<string, Employee>>(EMP_KEY, {});
+  const prev = m[rec.employee_id];
+  m[rec.employee_id] = {
+    employee_id: rec.employee_id,
+    name: rec.name,
+    email: rec.email ?? prev?.email ?? null,
+    phone: rec.phone ?? prev?.phone ?? null,
+    role: rec.role,
+    store_id: rec.store_id ?? prev?.store_id ?? null,
+    title: rec.title ?? prev?.title ?? null,
+    status: rec.status ?? prev?.status ?? "active",
+    joined_at: prev?.joined_at ?? new Date().toISOString().slice(0, 10),
+    created_at: prev?.created_at ?? new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  writeLocal(EMP_KEY, m);
+}
+
+/** Activate/deactivate. Remote: PATCH /employees/:id. Offline: localStorage. */
+export async function setEmployeeStatus(employeeId: string, status: "active" | "inactive", token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/employees/${encodeURIComponent(employeeId)}`, { method: "PATCH", headers: authHeaders(token), body: JSON.stringify({ status }) }).catch(() => {});
+    return;
+  }
+  const seed = await getJSON<{ employees: Employee[] }>(`${BASE}employees-demo.json`).then((d) => d.employees).catch(() => []);
+  const m = readLocal<Record<string, Employee>>(EMP_KEY, {});
+  const base = m[employeeId] ?? seed.find((e) => e.employee_id === employeeId);
+  if (base) { m[employeeId] = { ...base, status, updated_at: new Date().toISOString() }; writeLocal(EMP_KEY, m); }
+}
+
+// ---- attendance (People · Attendance tab) ----
+export type AttendanceStatus = "present" | "absent" | "half_day" | "leave" | "week_off" | "holiday";
+export interface Attendance {
+  id?: number;
+  employee_id: string;
+  store_id?: string | null;
+  date: string;
+  status: AttendanceStatus;
+  check_in?: string | null;
+  check_out?: string | null;
+  note?: string | null;
+  marked_by?: string | null;
+  created_at?: string;
+}
+export interface AttendanceSummary { present: number; absent: number; half_day: number; leave: number; total: number }
+export interface AttendanceInput {
+  employee_id: string;
+  store_id?: string | null;
+  date: string;
+  status: AttendanceStatus;
+  note?: string | null;
+  marked_by?: string | null;
+}
+
+const ATT_KEY = "liqo.attendance";
+const attKey = (employeeId: string, date: string) => `${employeeId}|${date}`;
+
+export async function listAttendance(opts: { storeId?: string | null; date?: string | null }, token?: string | null): Promise<Attendance[]> {
+  if (IS_REMOTE) {
+    const qs = new URLSearchParams();
+    if (opts.storeId) qs.set("storeId", opts.storeId);
+    if (opts.date) qs.set("date", opts.date);
+    const u = `${API_BASE}/attendance${qs.toString() ? `?${qs}` : ""}`;
+    return getJSONAuth<{ attendance: Attendance[] }>(u, token).then((d) => d.attendance).catch(() => []);
+  }
+  const m = readLocal<Record<string, Attendance>>(ATT_KEY, {});
+  return Object.values(m).filter((a) => (!opts.storeId || a.store_id === opts.storeId) && (!opts.date || a.date === opts.date));
+}
+
+export async function getAttendanceSummary(opts: { storeId: string; date: string }, token?: string | null): Promise<AttendanceSummary> {
+  const empty: AttendanceSummary = { present: 0, absent: 0, half_day: 0, leave: 0, total: 0 };
+  if (IS_REMOTE) {
+    const u = `${API_BASE}/attendance/summary?storeId=${encodeURIComponent(opts.storeId)}&date=${encodeURIComponent(opts.date)}`;
+    return getJSONAuth<AttendanceSummary>(u, token).catch(() => empty);
+  }
+  const rows = await listAttendance(opts);
+  const sum = { ...empty, total: rows.length };
+  for (const a of rows) {
+    if (a.status === "present") sum.present++;
+    else if (a.status === "absent") sum.absent++;
+    else if (a.status === "half_day") sum.half_day++;
+    else if (a.status === "leave") sum.leave++;
+  }
+  return sum;
+}
+
+/** Mark one day's attendance. Remote: POST /attendance. Offline: localStorage. */
+export async function markAttendance(rec: AttendanceInput, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/attendance`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
+    return;
+  }
+  const m = readLocal<Record<string, Attendance>>(ATT_KEY, {});
+  m[attKey(rec.employee_id, rec.date)] = { ...rec, created_at: new Date().toISOString() };
+  writeLocal(ATT_KEY, m);
+}
+
+// ---- leaves (People · Leaves tab) ----
+export type LeaveType = "casual" | "sick" | "earned" | "unpaid";
+export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+export interface Leave {
+  id: number;
+  employee_id: string;
+  type: LeaveType;
+  from_date: string;
+  to_date: string;
+  days: number;
+  reason?: string | null;
+  status: LeaveStatus;
+  approver_id?: string | null;
+  decided_at?: string | null;
+  created_at?: string;
+}
+export interface LeaveInput {
+  employee_id: string;
+  type: LeaveType;
+  from_date: string;
+  to_date: string;
+  days?: number;
+  reason?: string | null;
+}
+
+const LEAVE_KEY = "liqo.leaves";
+
+export async function listLeaves(opts?: { employeeId?: string | null; status?: LeaveStatus | null; storeId?: string | null }, token?: string | null): Promise<Leave[]> {
+  if (IS_REMOTE) {
+    const qs = new URLSearchParams();
+    if (opts?.employeeId) qs.set("employeeId", opts.employeeId);
+    if (opts?.status) qs.set("status", opts.status);
+    if (opts?.storeId) qs.set("storeId", opts.storeId);
+    const u = `${API_BASE}/leaves${qs.toString() ? `?${qs}` : ""}`;
+    return getJSONAuth<{ leaves: Leave[] }>(u, token).then((d) => d.leaves).catch(() => []);
+  }
+  let rows = readLocal<Leave[]>(LEAVE_KEY, []);
+  if (opts?.employeeId) rows = rows.filter((l) => l.employee_id === opts.employeeId);
+  if (opts?.status) rows = rows.filter((l) => l.status === opts.status);
+  return rows.sort((a, b) => b.from_date.localeCompare(a.from_date));
+}
+
+/** Apply for leave. Remote: POST /leaves. Offline: localStorage. */
+export async function createLeave(rec: LeaveInput, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/leaves`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
+    return;
+  }
+  const rows = readLocal<Leave[]>(LEAVE_KEY, []);
+  const days = rec.days ?? leaveDays(rec.from_date, rec.to_date);
+  rows.push({ id: Date.now(), employee_id: rec.employee_id, type: rec.type, from_date: rec.from_date, to_date: rec.to_date, days, reason: rec.reason ?? null, status: "pending", created_at: new Date().toISOString() });
+  writeLocal(LEAVE_KEY, rows);
+}
+
+/** Approve/reject a leave. Remote: PATCH /leaves/:id. Offline: localStorage. */
+export async function decideLeave(id: number, status: "approved" | "rejected" | "cancelled", approverId: string, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/leaves/${id}`, { method: "PATCH", headers: authHeaders(token), body: JSON.stringify({ status, approverId }) }).catch(() => {});
+    return;
+  }
+  const rows = readLocal<Leave[]>(LEAVE_KEY, []);
+  const i = rows.findIndex((l) => l.id === id);
+  if (i >= 0) { rows[i] = { ...rows[i], status, approver_id: approverId, decided_at: new Date().toISOString() }; writeLocal(LEAVE_KEY, rows); }
+}
+
+/** Inclusive whole-day span between two YYYY-MM-DD dates (>=1). */
+export function leaveDays(from: string, to: string): number {
+  const a = Date.parse(from), b = Date.parse(to);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 1;
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+// ---- milestones + incentives (Incentives screen) ----
+export type MilestoneMetric = "items_per_bill" | "bills" | "reco_rate" | "revenue" | "points";
+export interface Milestone {
+  milestone_id: string;
+  name: string;
+  metric: MilestoneMetric;
+  threshold: number;
+  period: "weekly" | "monthly" | "once";
+  reward_inr: number;
+  active: number;
+  created_at?: string;
+}
+export type IncentiveStatus = "pending" | "credited" | "settled" | "void";
+export interface Incentive {
+  id: number;
+  employee_id: string;
+  milestone_id?: string | null;
+  period: string;
+  points: number;
+  amount_inr: number;
+  reason?: string | null;
+  status: IncentiveStatus;
+  created_at?: string;
+  settled_at?: string | null;
+}
+export interface IncentiveInput {
+  employee_id: string;
+  milestone_id?: string | null;
+  period: string;
+  points?: number;
+  amount_inr?: number;
+  reason?: string | null;
+  status?: IncentiveStatus;
+}
+
+const INC_KEY = "liqo.incentives";
+
+export async function listMilestones(token?: string | null): Promise<Milestone[]> {
+  if (IS_REMOTE) {
+    return getJSONAuth<{ milestones: Milestone[] }>(`${API_BASE}/milestones`, token).then((d) => d.milestones).catch(() => []);
+  }
+  return getJSON<{ milestones: Milestone[] }>(`${BASE}milestones-demo.json`).then((d) => d.milestones).catch(() => []);
+}
+
+export async function listIncentives(opts?: { employeeId?: string | null; period?: string | null }, token?: string | null): Promise<Incentive[]> {
+  if (IS_REMOTE) {
+    const qs = new URLSearchParams();
+    if (opts?.employeeId) qs.set("employeeId", opts.employeeId);
+    if (opts?.period) qs.set("period", opts.period);
+    const u = `${API_BASE}/incentives${qs.toString() ? `?${qs}` : ""}`;
+    return getJSONAuth<{ incentives: Incentive[] }>(u, token).then((d) => d.incentives).catch(() => []);
+  }
+  let rows = readLocal<Incentive[]>(INC_KEY, []);
+  if (opts?.employeeId) rows = rows.filter((r) => r.employee_id === opts.employeeId);
+  if (opts?.period) rows = rows.filter((r) => r.period === opts.period);
+  return rows.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+}
+
+export async function addIncentive(rec: IncentiveInput, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/incentives`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
+    return;
+  }
+  const rows = readLocal<Incentive[]>(INC_KEY, []);
+  rows.push({ id: Date.now(), employee_id: rec.employee_id, milestone_id: rec.milestone_id ?? null, period: rec.period, points: rec.points ?? 0, amount_inr: rec.amount_inr ?? 0, reason: rec.reason ?? null, status: rec.status ?? "credited", created_at: new Date().toISOString() });
+  writeLocal(INC_KEY, rows);
+}
+
+// ---- feedback (Feedback screen) ----
+export type FeedbackCategory = "store" | "management" | "product" | "customer" | "process" | "other";
+export interface Feedback {
+  id: number;
+  employee_id?: string | null;
+  store_id?: string | null;
+  category: FeedbackCategory;
+  rating?: number | null;
+  message?: string | null;
+  anonymous: number;
+  status: "open" | "reviewed" | "actioned" | "closed";
+  created_at?: string;
+}
+export interface FeedbackInput {
+  employee_id?: string | null;
+  store_id?: string | null;
+  category: FeedbackCategory;
+  rating?: number | null;
+  message?: string | null;
+  anonymous?: boolean;
+}
+
+const FB_KEY = "liqo.feedback";
+
+/** Recent feedback (admin/manager). Remote: GET /feedback. Offline: localStorage. */
+export async function listFeedback(opts?: { storeId?: string | null }, token?: string | null): Promise<Feedback[]> {
+  if (IS_REMOTE) {
+    const u = opts?.storeId ? `${API_BASE}/feedback?storeId=${encodeURIComponent(opts.storeId)}` : `${API_BASE}/feedback`;
+    return getJSONAuth<{ feedback: Feedback[] }>(u, token).then((d) => d.feedback).catch(() => []);
+  }
+  let rows = readLocal<Feedback[]>(FB_KEY, []);
+  if (opts?.storeId) rows = rows.filter((f) => f.store_id === opts.storeId);
+  return rows.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+}
+
+/** Submit feedback (anonymous allowed; PUBLIC). Remote: POST /feedback. Offline: localStorage. */
+export async function submitFeedback(rec: FeedbackInput, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/feedback`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
+    return;
+  }
+  const rows = readLocal<Feedback[]>(FB_KEY, []);
+  rows.push({ id: Date.now(), employee_id: rec.anonymous ? null : rec.employee_id ?? null, store_id: rec.store_id ?? null, category: rec.category, rating: rec.rating ?? null, message: rec.message ?? null, anonymous: rec.anonymous ? 1 : 0, status: "open", created_at: new Date().toISOString() });
+  writeLocal(FB_KEY, rows);
+}
+
+// ---- offers management (Offers screen — admin) ----
+export interface OfferInput {
+  offer_id?: string;
+  title: string;
+  description?: string | null;
+  brand?: string | null;
+  category?: string | null;
+  sku?: string | null;
+  store_id?: string | null;
+  discount_pct?: number | null;
+  offer_price?: number | null;
+  image?: string | null;
+  starts_at: string;
+  ends_at: string;
+  boost_weight?: number;
+  active?: boolean;
+  created_by?: string | null;
+}
+
+const OFFERS_KEY = "liqo.offers";
+
+/** All offers (admin manager view). Remote: GET /offers/all. Offline: bundled + localStorage. */
+export async function listAllOffers(token?: string | null): Promise<Offer[]> {
+  if (IS_REMOTE) {
+    return getJSONAuth<{ offers: Offer[] }>(`${API_BASE}/offers/all`, token).then((d) => d.offers).catch(() => []);
+  }
+  const seed = await getJSON<{ offers: Offer[] }>(`${BASE}offers-demo.json`).then((d) => d.offers).catch(() => []);
+  const overlay = readLocal<Offer[]>(OFFERS_KEY, []);
+  const removed = readLocal<string[]>(`${OFFERS_KEY}.removed`, []);
+  const byId = new Map<string, Offer>(seed.filter((o) => !removed.includes(o.offer_id)).map((o) => [o.offer_id, o]));
+  for (const o of overlay) byId.set(o.offer_id, o);
+  return [...byId.values()].sort((a, b) => b.starts_at.localeCompare(a.starts_at));
+}
+
+/** Create an offer. Remote: POST /offers. Offline: localStorage. */
+export async function createOffer(rec: OfferInput, token?: string | null): Promise<void> {
+  const offerId = rec.offer_id ?? `off-${Math.random().toString(36).slice(2, 10)}`;
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/offers`, { method: "POST", headers: authHeaders(token), body: JSON.stringify({ ...rec, offer_id: offerId }) }).catch(() => {});
+    return;
+  }
+  const overlay = readLocal<Offer[]>(OFFERS_KEY, []);
+  overlay.push({
+    offer_id: offerId, title: rec.title, description: rec.description ?? null,
+    brand: rec.brand ?? null, category: rec.category ?? null, sku: rec.sku ?? null,
+    store_id: rec.store_id ?? null, discount_pct: rec.discount_pct ?? null, offer_price: rec.offer_price ?? null,
+    image: rec.image ?? null, starts_at: rec.starts_at, ends_at: rec.ends_at,
+    boost_weight: rec.boost_weight ?? 0, active: rec.active === false ? 0 : 1,
+  });
+  writeLocal(OFFERS_KEY, overlay);
+}
+
+/** Delete an offer. Remote: DELETE /offers/:id. Offline: localStorage. */
+export async function deleteOffer(offerId: string, token?: string | null): Promise<void> {
+  if (IS_REMOTE) {
+    await fetch(`${API_BASE}/offers/${encodeURIComponent(offerId)}`, { method: "DELETE", headers: authHeaders(token) }).catch(() => {});
+    return;
+  }
+  const overlay = readLocal<Offer[]>(OFFERS_KEY, []).filter((o) => o.offer_id !== offerId);
+  writeLocal(OFFERS_KEY, overlay);
+  const removed = readLocal<string[]>(`${OFFERS_KEY}.removed`, []);
+  if (!removed.includes(offerId)) { removed.push(offerId); writeLocal(`${OFFERS_KEY}.removed`, removed); }
 }
