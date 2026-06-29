@@ -53,8 +53,8 @@
 }
 .inv-select:focus,
 .inv-input:focus {
-  outline: 3px solid var(--amber);
-  outline-offset: 1px;
+  box-shadow: var(--focus);
+  outline: none;
   border-color: var(--indigo-bright);
 }
 .inv-input::placeholder {
@@ -178,7 +178,7 @@
   border-bottom: none;
 }
 .inv-table tbody tr:hover {
-  background: #FBFCFE;
+  background: var(--paper);
 }
 .inv-table td.num {
   text-align: right;
@@ -239,11 +239,11 @@
   color: var(--muted);
 }
 .inv-age.fresh   { background: var(--mint-soft); color: var(--mint); }
-.inv-age.a31     { background: #EEF2FB; color: var(--indigo); }
+.inv-age.a31     { background: var(--line); color: var(--indigo); }
 .inv-age.a61     { background: var(--amber-soft); color: var(--amber-deep); }
 .inv-age.a91     { background: #FCEFDD; color: var(--amber-deep); }
-.inv-age.a121    { background: #FBE6E0; color: #B0421F; }
-.inv-age.aged    { background: #FBE1E1; color: #C0392B; }
+.inv-age.a121    { background: var(--warn-soft); color: var(--warn); }
+.inv-age.aged    { background: var(--error-soft); color: var(--error); }
 .inv-age.none    { background: var(--paper); color: var(--muted); }
 
 /* ---------- states ---------- */
@@ -251,7 +251,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--indigo);
-  background: #EEF2FB;
+  background: var(--line);
   border-radius: 999px;
   padding: 4px 10px;
 }

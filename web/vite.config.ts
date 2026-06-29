@@ -28,8 +28,8 @@ export default defineConfig({
         display: "fullscreen",
         display_override: ["fullscreen", "standalone", "minimal-ui"],
         orientation: "any",
-        background_color: "#1F3864",
-        theme_color: "#1F3864",
+        background_color: "#211A12",
+        theme_color: "#211A12",
         categories: ["shopping", "business"],
         icons: [
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
