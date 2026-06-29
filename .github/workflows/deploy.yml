@@ -110,6 +110,10 @@ jobs:
         working-directory: worker-api
         run: npx wrangler d1 execute liqo --remote --file=../schema.sql --yes
 
+      - name: Seed reference data (idempotent)
+        working-directory: worker-api
+        run: npx wrangler d1 execute liqo --remote --file=../seed.sql --yes
+
       - name: Deploy API Worker
         working-directory: worker-api
         run: |
