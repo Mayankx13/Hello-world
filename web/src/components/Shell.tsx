@@ -11,9 +11,10 @@ import InventoryBrowser from "../screens/InventoryBrowser";
 import Leaderboard from "../screens/Leaderboard";
 import EngineConfigScreen from "../screens/EngineConfig";
 import CommandCentre from "../screens/CommandCentre";
+import EngineTest from "../screens/EngineTest";
 import Placeholder from "../screens/Placeholder";
 
-type Section = "sales" | "inventory" | "command" | "leaderboard" | "config" | "data";
+type Section = "sales" | "inventory" | "command" | "leaderboard" | "config" | "engine-test" | "data";
 
 interface NavDef { id: Section; roles: Role[]; icon: keyof typeof NavIcon; label: keyof typeof UI }
 const NAV: NavDef[] = [
@@ -22,12 +23,13 @@ const NAV: NavDef[] = [
   { id: "command", roles: ["admin"], icon: "command", label: "nav_command" },
   { id: "leaderboard", roles: ["admin", "manager", "salesperson"], icon: "leaderboard", label: "nav_leaderboard" },
   { id: "config", roles: ["admin"], icon: "config", label: "nav_config" },
+  { id: "engine-test", roles: ["admin"], icon: "command", label: "nav_engine_test" },
   { id: "data", roles: ["admin"], icon: "data", label: "nav_data" },
 ];
 const DEFAULT_SECTION: Record<Role, Section> = { admin: "command", manager: "inventory", salesperson: "sales" };
 
 export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang: () => void }): JSX.Element {
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const role = user!.role;
   const items = NAV.filter((n) => n.roles.includes(role));
   const [section, setSection] = useState<Section>(DEFAULT_SECTION[role]);
@@ -70,6 +72,9 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
       break;
     case "config":
       body = <EngineConfigScreen lang={lang} />;
+      break;
+    case "engine-test":
+      body = <EngineTest lang={lang} token={IS_REMOTE ? token : null} />;
       break;
     default:
       body = <Placeholder lang={lang} title={t(UI.nav_data, lang)} icon="data"

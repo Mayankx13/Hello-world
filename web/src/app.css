@@ -159,6 +159,43 @@
 .cc-legend .dot.aged { background: var(--amber); }
 .cc-cov td.cc-gap { color: var(--amber-deep); font-weight: 800; background: var(--amber-soft); }
 
+/* ---------- engine test console (D.2) ---------- */
+.et-controls { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); margin: 16px 0; }
+.et-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
+.et-field { display: flex; flex-direction: column; gap: 6px; }
+.et-field > span { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.et-field select { border: 1.5px solid var(--line); border-radius: 11px; padding: 10px 13px; font: inherit; background: var(--surface); min-height: 42px; }
+.et-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.et-check input { width: 18px; height: 18px; accent-color: var(--orange); }
+.et-questions { display: flex; flex-direction: column; gap: 12px; margin: 8px 0 4px; }
+.et-q-prompt { font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 7px; display: flex; align-items: center; gap: 8px; }
+.et-gate { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--orange-text); background: var(--amber-soft); border-radius: 999px; padding: 2px 8px; }
+.et-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.et-chip { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.et-chip.on { background: var(--espresso); color: #fff; border-color: var(--espresso); }
+.et-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+.et-tags { font-size: 12px; color: var(--muted); font-family: monospace; }
+.et-results { margin-top: 8px; }
+.et-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.et-pill { font-size: 12.5px; font-weight: 700; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
+.et-pill b { color: var(--orange-text); }
+.et-pill.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+.et-pill.boost { background: var(--amber-soft); color: var(--amber-deep); border-color: var(--amber); }
+.et-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 8px; }
+.et-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+.et-card.stretch { border-color: var(--amber); background: linear-gradient(180deg, var(--amber-soft), #fff 65%); box-shadow: var(--shadow-amber); }
+.et-tier { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--muted); }
+.et-card.stretch .et-tier { color: var(--amber-deep); }
+.et-name { font-family: var(--disp); font-weight: 800; font-size: 16px; color: var(--ink); margin: 3px 0; }
+.et-price { font-family: var(--disp); font-weight: 800; font-size: 19px; color: var(--indigo); }
+.et-score { font-family: monospace; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.et-fit { font-size: 13px; color: var(--muted); margin: 8px 0; }
+.et-pros { margin: 0 0 6px 16px; font-size: 12.5px; color: var(--ink); }
+.et-con { font-size: 12.5px; color: var(--warn); }
+.et-stock { font-size: 11.5px; color: var(--muted); font-family: monospace; margin-top: 8px; }
+.et-h { font-family: var(--disp); font-weight: 800; font-size: 15px; color: var(--indigo); margin: 22px 0 10px; }
+.et-empty { color: var(--muted); padding: 16px 0; }
+
 /* ---------- admin editors (Engine Config — Phase 2) ---------- */
 .cfg-screen { max-width: 920px; }
 .ed-tabs { display: flex; gap: 8px; margin: 18px 0 20px; border-bottom: 1px solid var(--line); }

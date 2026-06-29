@@ -367,3 +367,55 @@ export interface Questionnaire {
   default: Lang;
   categories: Record<string, QCategory>;
 }
+
+// ---- engine testing console (D.2) ----
+export interface EngineScore { tier: string; sku: string; brand: string; price: number; _score: number }
+export interface EngineTestResult {
+  result: RecommendResult;
+  meta: RecommendResult["meta"];
+  eligibleCount: number;
+  scores: EngineScore[];
+  boostsApplied: number;
+}
+
+/** Run the engine verbosely for testing. Remote: POST /engine/test (admin).
+ *  Offline: run the same pure engine locally and mirror the eligible-set maths. */
+export async function engineTest(req: RecommendRequest, token?: string | null): Promise<EngineTestResult> {
+  if (IS_REMOTE) {
+    const res = await fetch(`${API_BASE}/engine/test`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(req) });
+    if (!res.ok) throw new Error(res.status === 401 ? "Admin access required" : `Engine test failed (${res.status})`);
+    return res.json() as Promise<EngineTestResult>;
+  }
+  const [allInv, cfg] = await Promise.all([getInventory(), getConfig()]);
+  const inventory = allInv.filter((i) => i.category === req.category && i.storeId === req.storeId);
+  const result = recommend(req, inventory, cfg);
+  const band = cfg.priceBands[req.category]?.[req.budgetBand];
+  const maxPrice = band ? (req.stretch ? band[1] * (1 + cfg.stretchThreshold) : band[1]) : Infinity;
+  const recommendable = cfg.transform.recommendableChannels;
+  const excluded = new Set(cfg.brandExclusions[req.category] ?? []);
+  const cards = [result.good, result.better, result.best, result.stretch]
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
+    .map((c) => ({ tier: c.tier, sku: c.sku, brand: c.brand, price: c.price, _score: c._score }));
+  const eligibleCount = inventory.filter(
+    (it) => recommendable.includes(it.channel) && it.stockQty > 0 && !excluded.has(it.brand) &&
+      (!band || (it.price >= band[0] && it.price <= maxPrice)),
+  ).length;
+  return { result, meta: result.meta, eligibleCount, scores: cards, boostsApplied: 0 };
+}
+
+// ---- latest offers (Phase C) ----
+export interface Offer {
+  offer_id: string; title: string; description?: string | null;
+  brand?: string | null; category?: string | null; sku?: string | null;
+  store_id?: string | null; discount_pct?: number | null; offer_price?: number | null;
+  image?: string | null; starts_at: string; ends_at: string; boost_weight: number; active: number;
+}
+
+/** Live offers for the app startup page. Remote: GET /offers. Offline: bundled sample. */
+export async function getLiveOffers(opts?: { storeId?: string | null }): Promise<Offer[]> {
+  if (IS_REMOTE) {
+    const u = opts?.storeId ? `${API_BASE}/offers?storeId=${encodeURIComponent(opts.storeId)}` : `${API_BASE}/offers`;
+    return getJSON<{ offers: Offer[] }>(u).then((d) => d.offers).catch(() => []);
+  }
+  return getJSON<{ offers: Offer[] }>(`${BASE}offers-demo.json`).then((d) => d.offers).catch(() => []);
+}

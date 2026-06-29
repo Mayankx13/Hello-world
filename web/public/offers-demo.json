@@ -1,0 +1,46 @@
+{
+  "offers": [
+    {
+      "offer_id": "o-seed-lg-ac",
+      "title": "LG AC — Year-end clearance",
+      "description": "Flat 10% off LG inverter ACs, this week only.",
+      "brand": "LG",
+      "category": "ac",
+      "store_id": null,
+      "discount_pct": 10,
+      "offer_price": null,
+      "starts_at": "2026-06-01",
+      "ends_at": "2026-12-31",
+      "boost_weight": 0.25,
+      "active": 1
+    },
+    {
+      "offer_id": "o-seed-hyu-wm",
+      "title": "Hyundai 8kg washer + free detergent",
+      "description": "Hyundai top-load at a special LIQO price — free Whizpro detergent.",
+      "brand": "Hyundai",
+      "category": "wm",
+      "store_id": null,
+      "discount_pct": 41,
+      "offer_price": 13490,
+      "starts_at": "2026-06-01",
+      "ends_at": "2026-12-31",
+      "boost_weight": 0.2,
+      "active": 1
+    },
+    {
+      "offer_id": "o-seed-nuvoton-tv",
+      "title": "Nuvoton 43\" Android LED",
+      "description": "Special offer price — limited period.",
+      "brand": "Nuvoton",
+      "category": "tv",
+      "store_id": null,
+      "discount_pct": null,
+      "offer_price": 14990,
+      "starts_at": "2026-06-01",
+      "ends_at": "2026-12-31",
+      "boost_weight": 0,
+      "active": 1
+    }
+  ]
+}

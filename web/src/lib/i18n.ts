@@ -142,6 +142,23 @@ export const UI: Record<string, Loc> = {
   cc_fresh: { en: "Fresh (1–4)", hi: "नया (1–4)" },
   cc_aged: { en: "Aged (5–6)", hi: "पुराना (5–6)" },
 
+  // ── engine test console (D.2) ──
+  nav_engine_test: { en: "Engine Test", hi: "इंजन टेस्ट" },
+  et_title: { en: "Engine Test Console", hi: "इंजन टेस्ट कंसोल" },
+  et_sub: { en: "Run the recommendation model with any inputs and inspect the ranked cards, internal scores, the eligible set and the fit gates.", hi: "किसी भी इनपुट के साथ रेकमेंडेशन मॉडल चलाएँ और रैंक किए कार्ड, आंतरिक स्कोर, योग्य सेट व फ़िट गेट देखें।" },
+  et_budget: { en: "Budget band", hi: "बजट बैंड" },
+  et_stretch: { en: "Allow stretch", hi: "स्ट्रेच अनुमति" },
+  et_exchange: { en: "Exchange", hi: "एक्सचेंज" },
+  et_run: { en: "Run engine →", hi: "इंजन चलाएँ →" },
+  et_eligible: { en: "eligible in stock", hi: "योग्य स्टॉक में" },
+  et_band: { en: "Band", hi: "बैंड" },
+  et_boosts: { en: "offer boosts", hi: "ऑफ़र बूस्ट" },
+  et_none: { en: "No cards — widen the budget or relax the answers.", hi: "कोई कार्ड नहीं — बजट बढ़ाएँ या उत्तर ढीले करें।" },
+  et_scores: { en: "All scores (ranking detail)", hi: "सभी स्कोर (रैंकिंग विवरण)" },
+  et_tier: { en: "Tier", hi: "टियर" },
+  et_price: { en: "Price", hi: "मूल्य" },
+  et_score: { en: "Score", hi: "स्कोर" },
+
   // ── admin editors (Phase 2) ──
   cfg_title: { en: "Engine Config", hi: "इंजन कॉन्फ़िग" },
   cfg_sub: { en: "Tune the recommendation engine and questions live — changes apply to the next recommendation, no redeploy.", hi: "रेकमेंडेशन इंजन व प्रश्न लाइव ट्यून करें — बदलाव अगली सिफ़ारिश पर लागू, बिना रीडिप्लॉय।" },
