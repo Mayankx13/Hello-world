@@ -44,6 +44,7 @@ jobs:
       DEV_SITE_PROJECT: ${{ vars.DEV_SITE_PROJECT }}             # default liqo-site-dev
       DEV_INVENTORY_URL: ${{ vars.DEV_INVENTORY_URL }}
       LLM_RATIONALE: ${{ vars.DEV_LLM_RATIONALE }}               # "on" to enable on dev
+      DEV_DEMO_MODE: ${{ vars.DEV_DEMO_MODE }}                   # "true" = build the PWA offline/demo (no API needed)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -135,7 +136,18 @@ jobs:
       - name: Build dev PWA
         working-directory: web
         run: |
-          echo "VITE_API_BASE=${APP_API_BASE}" > .env.production
+          if [ "${DEV_DEMO_MODE}" = "true" ]; then
+            # Offline/demo build: no API base -> the PWA runs the engine client-side
+            # against bundled data. Fully testable on the *.pages.dev URL with no
+            # custom domain / workers.dev subdomain needed.
+            rm -f .env.production
+            echo "Building OFFLINE/DEMO PWA (no API base)."
+          else
+            # Prefer the actually-reachable Worker URL captured from the deploy log
+            # (e.g. the *.workers.dev URL) and fall back to the custom domain.
+            echo "VITE_API_BASE=${API_URL:-$APP_API_BASE}" > .env.production
+            echo "PWA -> API ${API_URL:-$APP_API_BASE}"
+          fi
           npm run build
 
       - name: Deploy dev PWA to Pages
@@ -166,8 +178,12 @@ jobs:
         run: |
           {
             echo "### LIQO DEV deployed 🧪"
-            echo "- Marketing: https://${SITE_DOMAIN}"
-            echo "- App:  https://${APP_DOMAIN}"
-            echo "- API:  https://${API_DOMAIN}"
-            echo "- Sync: ${SYNC_URL}  (hourly cron)"
+            echo "**Always reachable (Cloudflare Pages / Workers):**"
+            echo "- App (Pages):  https://${APP_PROJECT}.pages.dev"
+            echo "- Marketing (Pages):  https://${SITE_PROJECT}.pages.dev"
+            echo "- API (Worker):  ${API_URL:-_not published — register a workers.dev subdomain in the dashboard, then re-run_}"
+            echo "- Sync (Worker):  ${SYNC_URL:-_not published_}  (hourly cron)"
+            echo ""
+            echo "**Custom domains (need amaflip.in active as a zone on this account):**"
+            echo "- https://${SITE_DOMAIN} · https://${APP_DOMAIN} · https://${API_DOMAIN}"
           } >> "$GITHUB_STEP_SUMMARY" || true
