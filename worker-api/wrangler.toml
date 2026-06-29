@@ -3,7 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 # nodejs_compat lets the official @anthropic-ai/sdk run on the Workers runtime.
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+# false: don't publish to *.workers.dev (needs an account subdomain). The worker
+# is reached via its custom domain (api/api-dev.amaflip.in), bound at deploy or
+# in the dashboard. Avoids the "register a workers.dev subdomain" deploy error.
+workers_dev = false
 
 # D1 binding — create with `wrangler d1 create liqo`, then paste the id here
 # (and into worker-sync/wrangler.toml — both workers bind the SAME database).
