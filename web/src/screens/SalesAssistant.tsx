@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
 import { getConfig, getQuestionnaire, logSession, upsertCustomer, logCustomerEvent, IS_REMOTE } from "../lib/api";
 import type {
+  CustomerInfo,
   EngineConfig,
   Lang,
   Questionnaire,
@@ -39,6 +40,17 @@ const KIOSK_STEPS: ReadonlySet<Step> = new Set<Step>([
   "category", "profiler", "budget", "analysing", "results", "attach",
 ]);
 
+/** Premiumness from a single bill value (matches the ETL spend bands). */
+type PremiumTier = "value" | "mainstream" | "premium" | "luxury";
+const TIER_RANK: Record<string, number> = { value: 0, mainstream: 1, premium: 2, luxury: 3 };
+function tierFromAmount(amount: number): PremiumTier {
+  return amount >= 200000 ? "luxury" : amount >= 100000 ? "premium" : amount >= 40000 ? "mainstream" : "value";
+}
+/** Never downgrade a customer's known premiumness on a single smaller purchase. */
+function bestTier(known: string | null | undefined, derived: PremiumTier): PremiumTier {
+  return known && TIER_RANK[known] != null && TIER_RANK[known] >= TIER_RANK[derived] ? (known as PremiumTier) : derived;
+}
+
 export default function SalesAssistant({
   lang,
   storeId,
@@ -51,6 +63,8 @@ export default function SalesAssistant({
   const [data, setData] = useState<ResolvedData | null>(null);
   const [state, setState] = useState<AppState>({ ...initialState, lang, storeId });
   const [loggedOutcome, setLoggedOutcome] = useState(false);
+  // Recalled customer (by phone) — their owned/liked brands tilt the picks.
+  const [recalled, setRecalled] = useState<CustomerInfo | null>(null);
 
   // app-shell data
   useEffect(() => {
@@ -133,18 +147,26 @@ export default function SalesAssistant({
     return tags;
   }, [data, state.category, state.answers]);
 
+  // Brands the recalled customer owns/likes, as engine brand tags (`b:<Brand>`).
+  // The engine treats these as preferred brands (tie-break + brandPreferenceWeight),
+  // so recall genuinely tailors the picks — not just the welcome card.
+  const recalledBrandTags = useMemo(
+    () => (recalled ? [...new Set(recalled.prefs.filter((p) => p.affinity !== "avoid").map((p) => `b:${p.brand}`))] : []),
+    [recalled],
+  );
+
   const recommendRequest = useMemo<RecommendRequest | null>(() => {
     if (!state.category || !state.budgetBand) return null;
     return {
       storeId: state.storeId,
       category: state.category,
-      answers: flatTags,
+      answers: [...new Set([...flatTags, ...recalledBrandTags])],
       budgetBand: state.budgetBand,
       stretch: state.stretch,
       exchange: state.exchange,
       lang: state.lang,
     };
-  }, [state.category, state.budgetBand, state.storeId, state.stretch, state.exchange, state.lang, flatTags]);
+  }, [state.category, state.budgetBand, state.storeId, state.stretch, state.exchange, state.lang, flatTags, recalledBrandTags]);
 
   const handleAnalysisComplete = useCallback((result: RecommendResult | null) => {
     setState((s) => ({ ...s, result, step: "results" }));
@@ -178,10 +200,16 @@ export default function SalesAssistant({
       ts: new Date().toISOString(),
     };
     void logSession(log);
-    // Recall: remember this touchpoint against the phone so the next visit is tailored.
-    if (/^\d{10}$/.test(state.mobile) && state.picked) {
+    // Recall: remember this touchpoint against the phone so the next visit is
+    // tailored — but ONLY with the customer's consent (DPDP). The anonymous
+    // session log above is always written; PII (phone-keyed) writes are gated.
+    if (/^\d{10}$/.test(state.mobile) && state.picked && state.consent) {
       const sold = outcome === "bought_recommended" || outcome === "bought_different";
-      void upsertCustomer({ phone: state.mobile, consent: true, home_store_id: state.storeId, preferred_payment: state.exchange ? "exchange" : null });
+      const tier = bestTier(recalled?.customer.premium_tier, tierFromAmount(total));
+      void upsertCustomer({
+        phone: state.mobile, consent: true, home_store_id: state.storeId,
+        premium_tier: tier, preferred_payment: state.exchange ? "exchange" : null,
+      });
       void logCustomerEvent(state.mobile, {
         type: sold ? "purchase" : "intent",
         category: state.category, brand: state.picked.brand, budget_band: state.budgetBand,
@@ -189,7 +217,7 @@ export default function SalesAssistant({
       });
     }
     setLoggedOutcome(true);
-  }, [state, attachItems, flatTags]);
+  }, [state, attachItems, flatTags, recalled]);
 
   if (!data) return <div className="loading">Loading…</div>;
 
@@ -210,7 +238,7 @@ export default function SalesAssistant({
   let screen: JSX.Element | null = null;
   switch (state.step) {
     case "welcome":
-      screen = <Welcome lang={lang} mobile={state.mobile} onMobileChange={(mobile) => patch({ mobile })} onStart={() => patch({ step: "category" })} />;
+      screen = <Welcome lang={lang} mobile={state.mobile} consent={state.consent} onMobileChange={(mobile) => patch({ mobile })} onConsentChange={(consent) => patch({ consent })} onStart={() => patch({ step: "category" })} onRecall={setRecalled} />;
       break;
     case "category":
       screen = <CategoryScreen lang={lang} questionnaire={data.questionnaire} onPick={onPickCategory} onBack={() => patch({ step: "welcome" })} />;

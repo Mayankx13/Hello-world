@@ -12,14 +12,16 @@ import { UI, t } from "../lib/i18n";
 export interface WelcomeProps {
   lang: Lang;
   mobile: string;
+  consent?: boolean;
   onMobileChange: (value: string) => void;
+  onConsentChange?: (value: boolean) => void;
   onStart: () => void;
   onRecall?: (info: CustomerInfo | null) => void;
 }
 
 const PRETTY: Record<string, string> = { value: "Value", mainstream: "Mainstream", premium: "Premium", luxury: "Luxury", cash: "Cash", card: "Card", emi: "EMI", upi: "UPI", exchange: "Exchange" };
 
-export default function Welcome({ lang, mobile, onMobileChange, onStart, onRecall }: WelcomeProps): JSX.Element {
+export default function Welcome({ lang, mobile, consent, onMobileChange, onConsentChange, onStart, onRecall }: WelcomeProps): JSX.Element {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
   const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -89,7 +91,14 @@ export default function Welcome({ lang, mobile, onMobileChange, onStart, onRecal
         </div>
       )}
 
-      <p className="consent">{t(UI.consent, lang)}</p>
+      {mobile.length === 10 ? (
+        <label className="consent consent-opt">
+          <input type="checkbox" checked={!!consent} onChange={(e) => onConsentChange?.(e.target.checked)} />
+          <span>{t(UI.consent_save, lang)}</span>
+        </label>
+      ) : (
+        <p className="consent">{t(UI.consent, lang)}</p>
+      )}
       <div className="trust">
         <div><b>11</b>&nbsp;{lang === "hi" ? "उत्तर भारत में स्टोर" : "stores across North India"}</div>
         <div><b>{lang === "hi" ? "सभी प्रमुख ब्रांड" : "All major brands"}</b>&nbsp;{lang === "hi" ? "एक छत के नीचे" : "under one roof"}</div>

@@ -532,6 +532,34 @@ export async function logCustomerEvent(phone: string, ev: CustomerEvent, token?:
   writeLocalCustomers(cur);
 }
 
+// ---- analytics views (Command Centre — manager-gated) ----
+// Backed by v_store_daily / v_demand_category / demand_requests. Remote-only
+// (live D1 views); offline/demo returns [] so the sections show a "connect"
+// hint instead of fabricating numbers.
+export interface StoreDaily { store_id: string; day: string; bills: number; revenue: number; items: number; items_per_bill: number; recommended_rate: number | null }
+export interface DemandCategory { store_id: string | null; category: string | null; suggested: number; sold: number; conversion: number | null }
+export interface DemandRequestRow { id: number; store_id: string | null; category: string | null; brand: string | null; sku: string | null; budget_band: string | null; note: string | null; status: string; ts: string }
+
+function toQuery(params: Record<string, string | number | undefined>): string {
+  const p = Object.entries(params)
+    .filter(([, v]) => v != null && v !== "")
+    .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`);
+  return p.length ? `?${p.join("&")}` : "";
+}
+
+export async function getStoreDaily(opts: { storeId?: string; days?: number } = {}, token?: string | null): Promise<StoreDaily[]> {
+  if (!IS_REMOTE) return [];
+  return getJSONAuth<{ rows: StoreDaily[] }>(`${API_BASE}/analytics/store-daily${toQuery(opts)}`, token).then((d) => d.rows).catch(() => []);
+}
+export async function getDemandAnalysis(opts: { storeId?: string } = {}, token?: string | null): Promise<DemandCategory[]> {
+  if (!IS_REMOTE) return [];
+  return getJSONAuth<{ rows: DemandCategory[] }>(`${API_BASE}/analytics/demand${toQuery(opts)}`, token).then((d) => d.rows).catch(() => []);
+}
+export async function getDemandRequests(opts: { storeId?: string } = {}, token?: string | null): Promise<DemandRequestRow[]> {
+  if (!IS_REMOTE) return [];
+  return getJSONAuth<{ demand: DemandRequestRow[] }>(`${API_BASE}/demand${toQuery(opts)}`, token).then((d) => d.demand).catch(() => []);
+}
+
 // ===========================================================================
 // Admin frontend — People (employees, attendance, leaves), Incentives,
 // Feedback and Offers management.

@@ -78,7 +78,7 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
       body = <Leaderboard lang={lang} user={user!} />;
       break;
     case "command":
-      body = <CommandCentre lang={lang} />;
+      body = <CommandCentre lang={lang} token={IS_REMOTE ? token : null} />;
       break;
     case "config":
       body = <EngineConfigScreen lang={lang} />;
