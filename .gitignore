@@ -44,3 +44,6 @@ __pycache__/
 
 # local connector config (secrets)
 tools/liqo-busy-connector/config.json
+
+# generated import data (PII + dealer pricing — never commit)
+/data/import/
