@@ -12,16 +12,26 @@ import Leaderboard from "../screens/Leaderboard";
 import EngineConfigScreen from "../screens/EngineConfig";
 import CommandCentre from "../screens/CommandCentre";
 import EngineTest from "../screens/EngineTest";
+import People from "../screens/People";
+import Incentives from "../screens/Incentives";
+import Feedback from "../screens/Feedback";
+import Offers from "../screens/Offers";
 import Placeholder from "../screens/Placeholder";
 
-type Section = "sales" | "inventory" | "command" | "leaderboard" | "config" | "engine-test" | "data";
+type Section =
+  | "sales" | "inventory" | "command" | "leaderboard" | "config" | "engine-test" | "data"
+  | "people" | "incentives" | "feedback" | "offers";
 
 interface NavDef { id: Section; roles: Role[]; icon: keyof typeof NavIcon; label: keyof typeof UI }
 const NAV: NavDef[] = [
   { id: "sales", roles: ["admin", "manager", "salesperson"], icon: "sales", label: "nav_sales" },
   { id: "inventory", roles: ["admin", "manager", "salesperson"], icon: "inventory", label: "nav_inventory" },
   { id: "command", roles: ["admin"], icon: "command", label: "nav_command" },
+  { id: "people", roles: ["admin", "manager"], icon: "people", label: "nav_people" },
   { id: "leaderboard", roles: ["admin", "manager", "salesperson"], icon: "leaderboard", label: "nav_leaderboard" },
+  { id: "incentives", roles: ["admin", "manager", "salesperson"], icon: "incentives", label: "nav_incentives" },
+  { id: "feedback", roles: ["admin", "manager", "salesperson"], icon: "feedback", label: "nav_feedback" },
+  { id: "offers", roles: ["admin"], icon: "offers", label: "nav_offers" },
   { id: "config", roles: ["admin"], icon: "config", label: "nav_config" },
   { id: "engine-test", roles: ["admin"], icon: "command", label: "nav_engine_test" },
   { id: "data", roles: ["admin"], icon: "data", label: "nav_data" },
@@ -75,6 +85,18 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
       break;
     case "engine-test":
       body = <EngineTest lang={lang} token={IS_REMOTE ? token : null} />;
+      break;
+    case "people":
+      body = <People lang={lang} storeId={concreteStoreId} token={IS_REMOTE ? token : null} />;
+      break;
+    case "incentives":
+      body = <Incentives lang={lang} user={user!} token={IS_REMOTE ? token : null} />;
+      break;
+    case "feedback":
+      body = <Feedback lang={lang} user={user!} token={IS_REMOTE ? token : null} />;
+      break;
+    case "offers":
+      body = <Offers lang={lang} token={IS_REMOTE ? token : null} />;
       break;
     default:
       body = <Placeholder lang={lang} title={t(UI.nav_data, lang)} icon="data"

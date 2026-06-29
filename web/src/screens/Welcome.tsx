@@ -5,8 +5,8 @@
  */
 import { useEffect, useState } from "react";
 import type { JSX } from "react";
-import { recallCustomer } from "../lib/api";
-import type { CustomerInfo, Lang } from "../lib/api";
+import { recallCustomer, getLiveOffers } from "../lib/api";
+import type { CustomerInfo, Lang, Offer } from "../lib/api";
 import { UI, t } from "../lib/i18n";
 
 export interface WelcomeProps {
@@ -25,6 +25,14 @@ export default function Welcome({ lang, mobile, onMobileChange, onStart, onRecal
   const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
   const [recall, setRecall] = useState<CustomerInfo | null>(null);
+  const [offers, setOffers] = useState<Offer[]>([]);
+
+  // Live "offer of the day" strip (subtle, below the trust row). Never blocks.
+  useEffect(() => {
+    let live = true;
+    getLiveOffers().then((o) => { if (live) setOffers(o.slice(0, 4)); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -87,6 +95,20 @@ export default function Welcome({ lang, mobile, onMobileChange, onStart, onRecal
         <div><b>{lang === "hi" ? "सभी प्रमुख ब्रांड" : "All major brands"}</b>&nbsp;{lang === "hi" ? "एक छत के नीचे" : "under one roof"}</div>
         <div><b>{t(UI.no_cost_emi, lang)}</b>&nbsp;{lang === "hi" ? "उपलब्ध" : "available"}</div>
       </div>
+
+      {offers.length > 0 && (
+        <div className="welcome-offers" aria-label={t(UI.off_latest, lang)}>
+          <span className="wo-lbl">{t(UI.off_latest, lang)}</span>
+          <div className="wo-strip">
+            {offers.map((o) => (
+              <span className="wo-chip" key={o.offer_id}>
+                <b>{o.title}</b>
+                {o.discount_pct ? <em>{o.discount_pct}% {t(UI.off_off, lang)}</em> : null}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
