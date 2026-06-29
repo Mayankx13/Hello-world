@@ -46,6 +46,21 @@ const IPB_BONUS = 120;
 const RECO_BONUS = 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Incentive conversion rate — 50 earned points = ₹1. Single source of truth
+ * for turning leaderboard/ledger points into a real rupee value. Payroll
+ * settles the rupees; nothing here moves money.
+ */
+export const POINTS_PER_INR = 50;
+
+/**
+ * Rupee worth of earned points at 50 pts = ₹1. Floored to whole rupees so the
+ * figure shown is never more than what's actually been earned (no inflation).
+ */
+export function pointsToInr(points: number): number {
+  return Math.floor((points || 0) / POINTS_PER_INR);
+}
+
 /** Normalise the outcome vocabulary (the app emits `bought_recommended`, the
  *  engine/tests use `bought-recommended`) so either spelling counts. */
 function normOutcome(outcome: string | null): string {

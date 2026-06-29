@@ -9,7 +9,7 @@
  *
  * The UI only imports from here — it never knows which transport is active.
  */
-import { recommend, transformInventory, mergeLeaderboard } from "@engine";
+import { recommend, transformInventory, mergeLeaderboard, pointsToInr, POINTS_PER_INR } from "@engine";
 import type {
   EngineConfig,
   InventoryItem,
@@ -24,6 +24,9 @@ export type {
   RecommendResult,
   EngineConfig,
 } from "@engine";
+
+/** Incentive conversion (50 pts = ₹1) — re-exported so screens import from here. */
+export { pointsToInr, POINTS_PER_INR };
 
 export interface Store {
   id: string;

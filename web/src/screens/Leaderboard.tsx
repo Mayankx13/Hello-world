@@ -1,11 +1,12 @@
 /** Gamified leaderboard — weekly/monthly, within-store and across stores. */
 import { useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
-import { getLeaderboard, getStores } from "../lib/api";
+import { getLeaderboard, getStores, pointsToInr } from "../lib/api";
 import type { AuthUser, Lang, LeaderboardRow, Store } from "../lib/api";
 import { UI, t } from "../lib/i18n";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
+const inr = (n: number) => "₹" + n.toLocaleString("en-IN");
 
 export default function Leaderboard({ lang, user }: { lang: Lang; user: AuthUser }): JSX.Element {
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
@@ -39,7 +40,7 @@ export default function Leaderboard({ lang, user }: { lang: Lang; user: AuthUser
     <div className="content-narrow" lang={lang}>
       <div className="page-head">
         <h1>{t(UI.lb_title, lang)}</h1>
-        <p>{t(UI.lb_sub, lang)}</p>
+        <p>{t(UI.lb_sub, lang)} · <span style={{ color: "var(--amber-deep)", fontWeight: 700 }}>{t(UI.pts_rate, lang)}</span></p>
       </div>
 
       <div className="lb-tabs">
@@ -63,6 +64,7 @@ export default function Leaderboard({ lang, user }: { lang: Lang; user: AuthUser
                 <div className="pn">{r.name}{r.userId === user.id ? " ·" : ""}</div>
                 <div className="pstore">{storeName(r.storeId)}</div>
                 <div className="ppts">{pts(r).toLocaleString("en-IN")}<small> {t(UI.lb_points, lang)}</small></div>
+                <div className="pworth">{inr(pointsToInr(pts(r)))}</div>
               </div>
             );
           })}
@@ -96,7 +98,7 @@ export default function Leaderboard({ lang, user }: { lang: Lang; user: AuthUser
                 <td style={{ textTransform: "capitalize", color: "var(--muted)" }}>{storeName(r.storeId)}</td>
                 <td><span className="tag-pill">{r.itemsPerBill.toFixed(2)}</span></td>
                 <td style={{ color: "var(--muted)" }}>{Math.round(r.recoRate * 100)}%</td>
-                <td className="pts-cell"><b>{pts(r).toLocaleString("en-IN")}</b></td>
+                <td className="pts-cell"><b>{pts(r).toLocaleString("en-IN")}</b><small style={{ display: "block", color: "var(--amber-deep)", fontWeight: 700 }}>{inr(pointsToInr(pts(r)))}</small></td>
               </tr>
             ))}
           </tbody>

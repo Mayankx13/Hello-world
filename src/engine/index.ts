@@ -7,6 +7,8 @@ export {
   mergeLeaderboard,
   pointsForSession,
   isBill,
+  pointsToInr,
+  POINTS_PER_INR,
   type SessionRecord,
   type RosterEntry,
 } from "./points";

@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
-import { listMilestones, listIncentives, listEmployees } from "../lib/api";
+import { listMilestones, listIncentives, listEmployees, pointsToInr } from "../lib/api";
 import type { AuthUser, Employee, Incentive, IncentiveStatus, Lang, Milestone, MilestoneMetric } from "../lib/api";
 import { UI, t } from "../lib/i18n";
 
@@ -104,6 +104,7 @@ export default function Incentives({ lang, user, token }: { lang: Lang; user: Au
             </select>
           </label>
         )}
+        <span className="tag-pill" style={{ background: "var(--amber-soft)", color: "var(--amber-deep)" }}>{t(UI.pts_rate, lang)}</span>
         <span className="af-credit-pill">{t(UI.inc_total_credit, lang)}: <b>{inr(credited)}</b></span>
       </div>
 
@@ -117,6 +118,7 @@ export default function Incentives({ lang, user, token }: { lang: Lang; user: Au
                 {isStaffAdmin && <th>{t(UI.ppl_employee, lang)}</th>}
                 <th>{t(UI.inc_period, lang)}</th>
                 <th>{t(UI.inc_points, lang)}</th>
+                <th>{t(UI.inc_worth, lang)}</th>
                 <th>{t(UI.inc_amount, lang)}</th>
                 <th>{t(UI.af_status, lang)}</th>
               </tr>
@@ -127,6 +129,7 @@ export default function Incentives({ lang, user, token }: { lang: Lang; user: Au
                   {isStaffAdmin && <td><b>{empName(r.employee_id)}</b></td>}
                   <td style={{ color: "var(--muted)" }}>{r.period}{r.reason ? <small style={{ display: "block" }}>{r.reason}</small> : null}</td>
                   <td><span className="tag-pill">{r.points}</span></td>
+                  <td style={{ color: "var(--amber-deep)", fontWeight: 700 }}>{inr(pointsToInr(r.points))}</td>
                   <td className="pts-cell"><b>{inr(r.amount_inr)}</b></td>
                   <td><span className={`af-pill ${r.status === "credited" || r.status === "settled" ? "ok" : r.status === "void" ? "off" : ""}`}>{statusLabel(r.status, lang)}</span></td>
                 </tr>

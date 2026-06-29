@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeLeaderboard, mergeLeaderboard, pointsForSession, isBill, type SessionRecord, type LeaderboardRow } from "./points";
+import { computeLeaderboard, mergeLeaderboard, pointsForSession, isBill, pointsToInr, POINTS_PER_INR, type SessionRecord, type LeaderboardRow } from "./points";
 
 const NOW = "2026-06-24T12:00:00.000Z";
 const daysAgo = (n: number) => new Date(Date.parse(NOW) - n * 86400000).toISOString();
@@ -48,6 +48,22 @@ describe("computeLeaderboard", () => {
   });
   it("sorts by monthly points descending", () => {
     expect(rows[0].userId).toBe("u1");
+  });
+});
+
+describe("pointsToInr (50 pts = ₹1)", () => {
+  it("uses a 50:1 rate", () => {
+    expect(POINTS_PER_INR).toBe(50);
+    expect(pointsToInr(50)).toBe(1);
+    expect(pointsToInr(5000)).toBe(100);
+  });
+  it("floors partial rupees (never inflates earned value)", () => {
+    expect(pointsToInr(160)).toBe(3);   // 160/50 = 3.2 → 3
+    expect(pointsToInr(49)).toBe(0);
+  });
+  it("handles zero / nullish points", () => {
+    expect(pointsToInr(0)).toBe(0);
+    expect(pointsToInr(undefined as unknown as number)).toBe(0);
   });
 });
 
