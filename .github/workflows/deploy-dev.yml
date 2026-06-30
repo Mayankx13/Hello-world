@@ -97,8 +97,14 @@ jobs:
           if [ -n "${DEV_INVENTORY_URL}" ]; then
             printf '\nINVENTORY_URL = "%s"\n' "${DEV_INVENTORY_URL}" >> worker-sync/wrangler.toml
           fi
-          if [ "${LLM_RATIONALE}" = "on" ]; then
+          # Turn the LLM "why this fits you" rationale ON whenever an Anthropic
+          # API key is available (or DEV_LLM_RATIONALE=on forces it). Without a
+          # key the worker's llmEnabled() stays false anyway, so this is safe.
+          if [ -n "${ANTHROPIC_API_KEY}" ] || [ "${LLM_RATIONALE}" = "on" ]; then
             sed -i 's/^LLM_RATIONALE = .*/LLM_RATIONALE = "on"/' worker-api/wrangler.toml
+            echo "LLM_STATE=on ($([ -n "${ANTHROPIC_API_KEY}" ] && echo 'key present' || echo 'forced by DEV_LLM_RATIONALE'))" >> "$GITHUB_ENV"
+          else
+            echo "LLM_STATE=off · set the ANTHROPIC_API_KEY secret to enable" >> "$GITHUB_ENV"
           fi
           printf '\n[[routes]]\npattern = "%s"\ncustom_domain = true\n' "${API_DOMAIN}" >> worker-api/wrangler.toml
 
@@ -109,6 +115,13 @@ jobs:
       - name: Seed dev reference data
         working-directory: worker-api
         run: npx wrangler d1 execute liqo-dev --remote --file=../seed.sql --yes
+
+      - name: Seed demo accounts + sample offers (DEMO mode only)
+        if: ${{ env.DEV_DEMO_MODE == 'true' }}
+        working-directory: worker-api
+        run: |
+          echo "DEV_DEMO_MODE=true -> seeding fictional demo accounts + sample offers."
+          npx wrangler d1 execute liqo-dev --remote --file=../seed-demo.sql --yes
 
       - name: Deploy dev API Worker
         working-directory: worker-api
@@ -142,11 +155,13 @@ jobs:
             # custom domain / workers.dev subdomain needed.
             rm -f .env.production
             echo "Building OFFLINE/DEMO PWA (no API base)."
+            echo "DATA_MODE=demo · bundled sample data (set DEV_DEMO_MODE to anything but 'true' for live D1)" >> "$GITHUB_ENV"
           else
             # Prefer the actually-reachable Worker URL captured from the deploy log
             # (e.g. the *.workers.dev URL) and fall back to the custom domain.
             echo "VITE_API_BASE=${API_URL:-$APP_API_BASE}" > .env.production
             echo "PWA -> API ${API_URL:-$APP_API_BASE}"
+            echo "DATA_MODE=live · D1 via ${API_URL:-$APP_API_BASE}" >> "$GITHUB_ENV"
           fi
           npm run build
 
@@ -178,6 +193,9 @@ jobs:
         run: |
           {
             echo "### LIQO DEV deployed 🧪"
+            echo "- **Data source:** ${DATA_MODE:-unknown}"
+            echo "- **LLM rationale:** ${LLM_STATE:-off}"
+            echo ""
             echo "**Always reachable (Cloudflare Pages / Workers):**"
             echo "- App (Pages):  https://${APP_PROJECT}.pages.dev"
             echo "- Marketing (Pages):  https://${SITE_PROJECT}.pages.dev"

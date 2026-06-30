@@ -1,8 +1,11 @@
 # LIQO data model (Cloudflare D1 / SQLite)
 
 `schema.sql` is the single source of truth — 18 tables + 4 analytics views,
-foreign-key enforced. `seed.sql` loads reference data (stores, staff, milestones,
-offers). Both are applied idempotently on every deploy.
+foreign-key enforced. `seed.sql` loads only real reference data (stores +
+default milestones) and is applied idempotently on every deploy, so a live
+deploy never re-injects fake rows over your actual DBMS data. Fictional demo
+accounts and sample offers live in `seed-demo.sql`, which is applied **only**
+when building the offline/demo environment (`DEV_DEMO_MODE=true`).
 
 ## Domains
 
