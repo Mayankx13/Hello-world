@@ -27,6 +27,7 @@ export interface Env extends LlmEnv {
   ADMIN_TOKEN?: string;
   ALLOWED_ORIGIN?: string;
   AUTH_SECRET?: string;
+  DEMO_LOGIN?: string; // "on" to allow the bundled break-glass demo accounts (off on live)
 }
 
 interface DemoUser {
@@ -239,12 +240,17 @@ async function handleLogin(req: Request, env: Env): Promise<Response> {
     return json(env, { token, user });
   }
 
-  // 2) Fallback: bundled demo accounts (break-glass, e.g. admin@liqo.in / liqo).
-  const u = USERS.users.find((x) => x.email.toLowerCase() === ident.toLowerCase());
-  if (u && (!password || password === USERS.demoPassword)) {
-    const user = { id: u.id, email: u.email, name: u.name, role: u.role, storeId: u.storeId, title: u.title };
-    const token = await signToken(env, { sub: u.id, role: u.role, storeId: u.storeId });
-    return json(env, { token, user });
+  // 2) Break-glass bundled demo accounts — DISABLED by default so a live
+  //    deployment only honours the real database-backed auth above. Set
+  //    DEMO_LOGIN="on" to temporarily re-enable them (e.g. first bring-up before
+  //    staff are seeded). An empty password is NEVER accepted, even then.
+  if (env.DEMO_LOGIN === "on" && password) {
+    const u = USERS.users.find((x) => x.email.toLowerCase() === ident.toLowerCase());
+    if (u && password === USERS.demoPassword) {
+      const user = { id: u.id, email: u.email, name: u.name, role: u.role, storeId: u.storeId, title: u.title };
+      const token = await signToken(env, { sub: u.id, role: u.role, storeId: u.storeId });
+      return json(env, { token, user });
+    }
   }
 
   return json(env, { error: "unauthorized", message: "Invalid email or password" }, 401);

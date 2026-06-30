@@ -18,6 +18,7 @@ export default function Login({ lang, onToggleLang }: { lang: Lang; onToggleLang
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (IS_REMOTE) return; // demo accounts are offline-only; never load them on a live deploy
     getDemoUsers()
       .then((d) => {
         setDemoPw(d.demoPassword);
@@ -82,7 +83,10 @@ export default function Login({ lang, onToggleLang }: { lang: Lang; onToggleLang
             </button>
           </form>
 
-          {reps.length > 0 && (
+          {/* One-tap demo accounts are ONLY for the offline/demo build (no Worker).
+              They never appear on a live deployment, where real staff sign in with
+              their phone/email. */}
+          {!IS_REMOTE && reps.length > 0 && (
             <div className="demo-list">
               <div className="lbl">{t(UI.demo_accounts, lang)}</div>
               {reps.map((u) => (
@@ -92,7 +96,7 @@ export default function Login({ lang, onToggleLang }: { lang: Lang; onToggleLang
                   <span aria-hidden="true">→</span>
                 </button>
               ))}
-              {!IS_REMOTE && <p className="sub" style={{ marginTop: 10 }}>{t(UI.offline_badge, lang)}</p>}
+              <p className="sub" style={{ marginTop: 10 }}>{t(UI.offline_badge, lang)}</p>
             </div>
           )}
         </div>
