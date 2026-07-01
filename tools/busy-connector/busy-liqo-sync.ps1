@@ -13,7 +13,10 @@
     powershell -ExecutionPolicy Bypass -File .\busy-liqo-sync.ps1 -Config .\config.json
 #>
 [CmdletBinding()]
-param([string]$Config = "$PSScriptRoot\config.json")
+param(
+  [string]$Config = "$PSScriptRoot\config.json",
+  [switch]$Discover   # dump BUSY schema to discovery-output.txt (for one-time mapping), then exit
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -47,9 +50,55 @@ function To-Num($v) {
   return $null
 }
 
+# --- schema-discovery helpers (used by -Discover) ---
+function Invoke-Q($conn, $sql) {
+  $cmd = $conn.CreateCommand(); $cmd.CommandText = $sql; $cmd.CommandTimeout = 120
+  $da = New-Object System.Data.SqlClient.SqlDataAdapter $cmd
+  $dt = New-Object System.Data.DataTable; [void]$da.Fill($dt); return $dt
+}
+function Dump($dt, $title) {
+  $sb = New-Object System.Text.StringBuilder
+  [void]$sb.AppendLine("### $title  ($($dt.Rows.Count) rows)")
+  $cols = @($dt.Columns | ForEach-Object { $_.ColumnName })
+  [void]$sb.AppendLine(($cols -join "`t"))
+  foreach ($row in $dt.Rows) {
+    $vals = @(); foreach ($c in $cols) { $v = $row[$c]; if ($v -is [System.DBNull]) { $v = '' }; $vals += ([string]$v) }
+    [void]$sb.AppendLine(($vals -join "`t"))
+  }
+  [void]$sb.AppendLine(''); return $sb.ToString()
+}
+
 try {
   if (-not (Test-Path $Config)) { throw "Config not found: $Config (copy config.example.json -> config.json)" }
   $cfg = Get-Content $Config -Raw | ConvertFrom-Json
+
+  # ---------- DISCOVERY MODE (-Discover): dump BUSY schema, then exit ----------
+  if ($Discover) {
+    $s = $cfg.sql
+    if ($s.auth -eq 'sql') { $connStr = "Server=$($s.server);Database=master;User ID=$($s.user);Password=$($s.password);TrustServerCertificate=True;Encrypt=False;" }
+    else { $connStr = "Server=$($s.server);Database=master;Integrated Security=SSPI;TrustServerCertificate=True;Encrypt=False;" }
+    Log "discovery -> $($s.server)"
+    $conn = New-Object System.Data.SqlClient.SqlConnection $connStr
+    $conn.Open()
+    $out = New-Object System.Text.StringBuilder
+    try {
+      [void]$out.Append((Dump (Invoke-Q $conn "SELECT name FROM sys.databases ORDER BY name") "DATABASES"))
+      $db = [string]$s.database
+      if ($db -and $db -notmatch 'YOUR_BUSY') {
+        $conn.ChangeDatabase($db)
+        [void]$out.Append((Dump (Invoke-Q $conn "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME") "TABLES in $db"))
+        [void]$out.Append((Dump (Invoke-Q $conn "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS ORDER BY TABLE_NAME") "VIEWS in $db"))
+        [void]$out.Append((Dump (Invoke-Q $conn "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME LIKE '%Item%' OR COLUMN_NAME LIKE '%Stock%' OR COLUMN_NAME LIKE '%Qty%' OR COLUMN_NAME LIKE '%MRP%' OR COLUMN_NAME LIKE '%Price%' OR COLUMN_NAME LIKE '%Rate%' OR COLUMN_NAME LIKE '%Brand%' OR COLUMN_NAME LIKE '%Company%' OR COLUMN_NAME LIKE '%Group%' OR COLUMN_NAME LIKE '%Categ%' OR COLUMN_NAME LIKE '%Location%' OR COLUMN_NAME LIKE '%Branch%' OR COLUMN_NAME LIKE '%Godown%' OR COLUMN_NAME LIKE '%Center%' ORDER BY TABLE_NAME, COLUMN_NAME") "CANDIDATE COLUMNS in $db"))
+        try { [void]$out.Append((Dump (Invoke-Q $conn "SELECT TOP 10 * FROM Master1") "SAMPLE Master1")) } catch { [void]$out.AppendLine("Master1 sample failed: $($_.Exception.Message)") }
+      } else {
+        [void]$out.AppendLine("Next: set sql.database in config.json to your BUSY company DB (pick it from DATABASES above), then run -Discover again for tables/columns/samples.")
+      }
+    } finally { $conn.Close() }
+    $outPath = "$PSScriptRoot\discovery-output.txt"
+    Set-Content -Path $outPath -Value $out.ToString() -Encoding UTF8
+    Log "discovery written -> $outPath  (send this file back)"
+    exit 0
+  }
 
   # ---------- 1. READ from the source ----------
   $source = @()

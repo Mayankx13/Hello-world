@@ -1,3 +1,4 @@
 # Local, machine-specific — holds the admin token + DB credentials. Never commit.
 config.json
 *.log
+discovery-output.txt

@@ -29,10 +29,20 @@ snapshot each run means a missed run self-corrects on the next.
 ## One-time setup
 
 ### 1. Find BUSY's stock query (schema discovery)
-Run `discover-busy-schema.sql` in SSMS against your BUSY server and share the
-output — or, fastest, **ask your BUSY dealer for the "Item-wise Stock with Sale
-Price / MRP / Brand / Category / Location" query**. The connector just needs a
-query that returns **one row per SKU per store** with those columns.
+Put your server + login into `config.json` (`sql.server`, `sql.auth: "sql"`,
+`sql.user`, `sql.password`) and run:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\busy-liqo-sync.ps1 -Config .\config.json -Discover
+```
+It writes **`discovery-output.txt`** — the database list first; set
+`sql.database` to your BUSY company DB and run `-Discover` again to also dump
+tables, views, candidate columns and a `Master1` sample. Send that file back and
+I'll hand you the exact `sql.query` + `columnMap`.
+
+Alternatives: run `discover-busy-schema.sql` in SSMS, or — fastest — **ask your
+BUSY dealer for the "Item-wise Stock with Sale Price / MRP / Brand / Category /
+Location" query**. The connector just needs a query returning **one row per SKU
+per store** with those columns.
 
 ### 2. Configure
 ```powershell
@@ -86,8 +96,16 @@ Done — stock now flows to the app automatically.
 ## Security
 - `config.json` (token + DB creds) is **gitignored** — it never leaves the machine.
 - Only stock rows (SKU, price, qty, brand, category, store) are sent — **no PII**.
-- Use a **read-only** SQL login if you use SQL auth.
-- Rotate the token anytime (update `config.json`).
+- **Don't run the scheduled job as `SA`.** Use it only for the one-time
+  `-Discover`, then create a **read-only** login scoped to the BUSY DB and use
+  that in `config.json` (run once in SSMS as SA, set your own password + DB name):
+  ```sql
+  CREATE LOGIN liqo_ro WITH PASSWORD = 'a-strong-password';
+  USE [YOUR_BUSY_COMPANY_DB];
+  CREATE USER liqo_ro FOR LOGIN liqo_ro;
+  ALTER ROLE db_datareader ADD MEMBER liqo_ro;   -- read-only, whole DB
+  ```
+- Rotate the LIQO token anytime (update `config.json`).
 
 ## Troubleshooting
 - `no mappable rows` → your `columnMap`/`categoryMap` names don't match the source
