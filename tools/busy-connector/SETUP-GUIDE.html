@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIQO × BUSY — Inventory Sync Setup Guide</title>
+<style>
+  :root{ --orange:#F1641E; --amber-deep:#D9820A; --espresso:#211A12; --ink:#2b2b2b;
+         --muted:#6b6255; --line:#e7ddcf; --mint:#1B7F4D; --danger:#B23A2E; --paper:#fff; }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+        color:var(--ink); line-height:1.55; background:#f4efe8; }
+  .page{ max-width:820px; margin:20px auto; background:var(--paper); padding:40px 46px;
+         box-shadow:0 10px 40px rgba(33,26,18,.12); border-radius:6px; }
+  header{ border-bottom:3px solid var(--orange); padding-bottom:16px; margin-bottom:22px; }
+  .brand{ font-weight:800; letter-spacing:.14em; color:var(--orange); font-size:13px; text-transform:uppercase }
+  h1{ font-size:26px; margin:6px 0 4px; letter-spacing:-.01em; color:var(--espresso) }
+  header .sub{ color:var(--muted); font-size:14px }
+  header .meta{ margin-top:10px; font-size:12.5px; color:var(--muted) }
+  h2{ font-size:19px; margin:30px 0 10px; color:var(--espresso); border-left:4px solid var(--amber-deep); padding-left:10px }
+  h3{ font-size:15.5px; margin:20px 0 6px; color:var(--espresso) }
+  p{ margin:8px 0 }
+  ol.steps{ counter-reset:step; list-style:none; padding-left:0; margin:10px 0 }
+  ol.steps > li{ counter-increment:step; position:relative; padding:4px 0 12px 42px; margin:0 }
+  ol.steps > li::before{ content:counter(step); position:absolute; left:0; top:2px; width:28px; height:28px;
+    background:var(--orange); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:14px }
+  code{ background:#f3ece1; padding:1px 6px; border-radius:5px; font-family:"SFMono-Regular",Consolas,monospace; font-size:12.5px; color:#7a3b12 }
+  pre{ background:#211A12; color:#f4e9dc; padding:12px 14px; border-radius:8px; overflow-x:auto;
+       font-family:"SFMono-Regular",Consolas,monospace; font-size:12.5px; line-height:1.5; margin:8px 0 }
+  pre.json{ background:#1c2530 }
+  .callout{ border-radius:8px; padding:12px 14px; margin:12px 0; font-size:13.5px; border:1px solid }
+  .info{ background:#FCF3E8; border-color:#f0dcc0 }
+  .warn{ background:#FBEEE9; border-color:#f0cabf }
+  .sec{ background:#EAF5EE; border-color:#c4e6d1 }
+  .callout b{ display:block; margin-bottom:2px }
+  table{ width:100%; border-collapse:collapse; margin:12px 0; font-size:13px }
+  th,td{ border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top }
+  th{ background:#faf5ee; font-weight:700 }
+  .pill{ display:inline-block; background:#eee; border-radius:999px; padding:2px 10px; font-size:11.5px; font-weight:700 }
+  .phase{ background:#faf5ee; border:1px solid var(--line); border-radius:10px; padding:4px 16px 8px; margin:14px 0 }
+  .phase .tag{ display:inline-block; margin:12px 0 0; font-weight:800; color:var(--orange); font-size:12px; letter-spacing:.08em; text-transform:uppercase }
+  .checklist{ list-style:none; padding-left:0 }
+  .checklist li{ padding:3px 0 3px 26px; position:relative }
+  .checklist li::before{ content:"☐"; position:absolute; left:0; font-size:15px; color:var(--amber-deep) }
+  .send{ background:#211A12; color:#fbe9d8; border-radius:10px; padding:16px 18px; margin:16px 0 }
+  .send b{ color:#fff }
+  footer{ margin-top:28px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:12px }
+  a{ color:var(--amber-deep) }
+  @media print{
+    body{ background:#fff } .page{ box-shadow:none; margin:0; max-width:none; padding:0 8mm; border-radius:0 }
+    h2{ page-break-after:avoid } pre,table,.callout,.phase,.send{ page-break-inside:avoid }
+    header{ page-break-after:avoid }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="brand">⚡ LIQO · Retail Intelligence</div>
+    <h1>BUSY → LIQO — Inventory Sync Setup Guide</h1>
+    <div class="sub">For the store's IT / BUSY administrator. Sets up automatic hourly sync of live stock from BUSY into the LIQO app.</div>
+    <div class="meta">Estimated time: ~15 min now (discovery) + ~15 min later (final setup &amp; scheduling). No software to install.</div>
+  </header>
+
+  <h2>What this does &amp; how it works</h2>
+  <p>A small script runs on a Windows PC that can reach your BUSY SQL Server. On a timer it reads current
+     stock from BUSY and securely sends it to LIQO over the internet, which refreshes the app's inventory.
+     Nothing is installed (it uses Windows' built-in components), and it only makes an <b>outgoing</b>
+     connection — so no firewall, router, or port changes are needed.</p>
+  <pre>Windows Task Scheduler (every 30–60 min)
+   -> reads stock from BUSY's SQL Server
+   -> sends it over HTTPS to LIQO
+   -> the LIQO app shows live, in-stock products</pre>
+
+  <h2>Before you start — you'll need</h2>
+  <ul class="checklist">
+    <li>A <b>Windows PC that can reach the BUSY SQL Server</b> (the BUSY server itself is easiest).</li>
+    <li><b>Windows PowerShell 5.1+</b> — already built into Windows.</li>
+    <li>The <b>BUSY SQL Server login</b> (server name + username + password) — provided with this guide.</li>
+    <li>The <b>LIQO access token</b> (<code>ADMIN_TOKEN</code>) — provided by your LIQO admin.</li>
+    <li>The <b>connector files</b> (the <code>busy-connector</code> folder) — provided with this guide.</li>
+    <li>Normal <b>internet access</b> on that PC (outgoing HTTPS).</li>
+  </ul>
+
+  <div class="phase">
+    <div class="tag">Phase 1 · Do this now — Discovery (~15 min)</div>
+    <p>This step finds where BUSY keeps its stock data and produces one file to send back to LIQO. LIQO
+       then returns a ready-made settings file, so you don't have to know BUSY's database internals.</p>
+
+    <ol class="steps">
+      <li><b>Copy the connector folder onto the PC.</b> Put it at <code>C:\LIQO\busy-connector\</code>.
+          It should contain <code>busy-liqo-sync.ps1</code>, <code>config.example.json</code>, this guide, and a README.</li>
+
+      <li><b>Create your settings file.</b> In that folder, make a copy of <code>config.example.json</code>
+          and name the copy <code>config.json</code>. Open <code>config.json</code> in Notepad.</li>
+
+      <li><b>Fill in the login details.</b> Set the values below (leave <code>database</code> empty for now).
+          The password stays only in this local file.
+<pre class="json">"adminToken": "&lt;the LIQO token you were given&gt;",
+"mode": "sql",
+"sql": {
+  "server":   "WIN-0A5I5MNR100",
+  "database": "",
+  "auth":     "sql",
+  "user":     "SA",
+  "password": "&lt;the SQL password you were given&gt;",
+  "query":    ""
+}</pre></li>
+
+      <li><b>Open PowerShell in the folder.</b> Click the Start menu, type <code>PowerShell</code>, open it, then run:
+<pre>cd C:\LIQO\busy-connector</pre></li>
+
+      <li><b>Run discovery:</b>
+<pre>powershell -ExecutionPolicy Bypass -File .\busy-liqo-sync.ps1 -Config .\config.json -Discover</pre>
+          It creates a file called <code>discovery-output.txt</code> listing the databases on the server.</li>
+
+      <li><b>Pick the BUSY company database.</b> Open <code>discovery-output.txt</code>, look under
+          <code>### DATABASES</code>, and find your BUSY company database (ignore <code>master</code>,
+          <code>model</code>, <code>msdb</code>, <code>tempdb</code>). Put its name into
+          <code>config.json</code> → <code>"database"</code>.</li>
+
+      <li><b>Run discovery again</b> (same command as step 5). Now <code>discovery-output.txt</code> also
+          lists the tables, columns, and a data sample.</li>
+
+      <li><b>Send <code>discovery-output.txt</code> back to LIQO.</b> That's all that's needed to build
+          your exact settings.</li>
+    </ol>
+
+    <div class="callout info">
+      <b>If step 5 shows a connection error</b>
+      BUSY may use a named database instance. In <code>config.json</code>, try
+      <code>"server": "WIN-0A5I5MNR100\\SQLEXPRESS"</code> or <code>"WIN-0A5I5MNR100\\BUSY"</code>
+      (note the double backslash) and run again. The error text will confirm the right name.
+    </div>
+  </div>
+
+  <div class="send">
+    <b>➊ What to send back to LIQO after Phase 1</b>
+    The file <code style="color:#ffd9be">discovery-output.txt</code> (from
+    <code style="color:#ffd9be">C:\LIQO\busy-connector\</code>). Do <u>not</u> send <code style="color:#ffd9be">config.json</code> — it has the password.
+  </div>
+
+  <div class="phase">
+    <div class="tag">Phase 2 · After LIQO sends your ready-made settings (~15 min)</div>
+    <p>LIQO returns a completed <code>config.json</code> (with the stock query and column mapping filled in).
+       Then finish setup:</p>
+
+    <ol class="steps">
+      <li><b>Replace <code>config.json</code></b> with the one LIQO sends you (keep it in the same folder).</li>
+
+      <li><b>Switch to a read-only database login</b> (recommended — don't run the daily job as <code>SA</code>).
+          Open <b>SQL Server Management Studio</b>, connect as <code>SA</code>, and run (choose your own
+          password, and use your BUSY database name):
+<pre>CREATE LOGIN liqo_ro WITH PASSWORD = 'a-strong-password';
+USE [YOUR_BUSY_COMPANY_DB];
+CREATE USER liqo_ro FOR LOGIN liqo_ro;
+ALTER ROLE db_datareader ADD MEMBER liqo_ro;</pre>
+          Then in <code>config.json</code> set <code>"user": "liqo_ro"</code> and the new password.</li>
+
+      <li><b>Do a test run</b> (without <code>-Discover</code>):
+<pre>powershell -ExecutionPolicy Bypass -File .\busy-liqo-sync.ps1 -Config .\config.json</pre>
+          Success looks like: <code>PUSH ok -&gt; raw=… written=…</code>. Any problem is written to
+          <code>busy-liqo-sync.log</code> in the same folder.</li>
+
+      <li><b>Confirm in the LIQO app.</b> Tell your LIQO admin — they'll see the sync in the app's
+          <b>Activity log</b> and the live product counts update.</li>
+
+      <li><b>Ask LIQO to enable "push mode"</b> (a one-time switch on their side) so their hourly job stops
+          using sample data and lets your live push own the inventory.</li>
+
+      <li><b>Schedule it to run automatically.</b> Open <b>Task Scheduler</b> → <b>Create Task</b> (not
+          "Basic Task"):
+          <ul>
+            <li><b>General:</b> name it <code>LIQO BUSY Sync</code>; choose "Run whether user is logged on or
+                not"; tick "Run with highest privileges".</li>
+            <li><b>Triggers</b> → New: Daily; then tick "Repeat task every <b>30 minutes</b> for a duration of
+                1 day".</li>
+            <li><b>Actions</b> → New → "Start a program":
+                <br>Program/script: <code>powershell.exe</code>
+                <br>Add arguments: <code>-ExecutionPolicy Bypass -File "C:\LIQO\busy-connector\busy-liqo-sync.ps1" -Config "C:\LIQO\busy-connector\config.json"</code>
+                <br>Start in: <code>C:\LIQO\busy-connector</code></li>
+            <li><b>Settings:</b> tick "If the task fails, restart every 5 minutes, up to 3 times".</li>
+          </ul>
+          Click OK and enter the Windows account password when asked. Done — stock now syncs on its own.</li>
+    </ol>
+  </div>
+
+  <h2>Troubleshooting</h2>
+  <table>
+    <tr><th>Message / symptom</th><th>Fix</th></tr>
+    <tr><td>Connection / login failed</td><td>Check the server name (try <code>WIN-0A5I5MNR100\SQLEXPRESS</code> or <code>\BUSY</code>), the username/password, and that this PC can reach the SQL Server.</td></tr>
+    <tr><td><code>no mappable rows</code></td><td>The column names in <code>config.json</code> don't match the query output. This is fixed in the settings LIQO sends you — re-run with their file.</td></tr>
+    <tr><td><code>401</code> on push</td><td>Wrong or expired LIQO token, or LIQO hasn't deployed the receiving endpoint yet. Confirm both with your LIQO admin.</td></tr>
+    <tr><td>Script won't run ("not digitally signed")</td><td>Always launch it with <code>-ExecutionPolicy Bypass</code> as shown — no system change needed.</td></tr>
+    <tr><td>Where are the logs?</td><td><code>busy-liqo-sync.log</code> in the connector folder — every run is recorded there.</td></tr>
+  </table>
+
+  <div class="callout sec">
+    <b>Security &amp; privacy</b>
+    <code>config.json</code> (token + password) stays only on this PC and is never shared or committed.
+    Only stock information (product code, price, quantity, brand, category, store) is sent — <b>no customer
+    data ever leaves the machine</b>. Use the read-only <code>liqo_ro</code> login for the scheduled job.
+  </div>
+
+  <div class="callout warn">
+    <b>Please don't</b>
+    …email <code>config.json</code>, screenshot the password, or paste credentials into chat/tickets. If the
+    LIQO token needs changing, your LIQO admin will issue a new one.
+  </div>
+
+  <div class="send">
+    <b>➋ Questions or stuck?</b>
+    Send your LIQO admin the file <code style="color:#ffd9be">busy-liqo-sync.log</code> and a note of which
+    step you're on. That's enough to diagnose almost anything.
+  </div>
+
+  <footer>
+    LIQO Retail Intelligence · BUSY inventory connector · Give this guide together with the
+    <code>busy-connector</code> folder, the SQL login, and the LIQO token.
+  </footer>
+</div>
+</body>
+</html>
