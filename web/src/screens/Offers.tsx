@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import { listAllOffers, createOffer, deleteOffer, getStores } from "../lib/api";
+import { useToast } from "../lib/toast";
 import type { Lang, Offer, Store } from "../lib/api";
 import { UI, t } from "../lib/i18n";
 
@@ -42,12 +43,19 @@ export default function Offers({ lang, token }: { lang: Lang; token: string | nu
     const m = new Map(stores.map((s) => [s.id, s.name]));
     return (id: string | null | undefined) => (id ? m.get(id) ?? id : t(UI.off_any_store, lang));
   }, [stores, lang]);
+  const toast = useToast();
 
   async function remove(o: Offer) {
     setBusy(o.offer_id);
-    await deleteOffer(o.offer_id, token);
-    reload();
-    setBusy(null);
+    try {
+      await deleteOffer(o.offer_id, token);
+      toast.notify(t(UI.toast_removed, lang));
+      reload();
+    } catch (err) {
+      toast.notify((err as Error).message, "error");
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
@@ -122,26 +130,33 @@ function CreateOfferForm({ lang, stores, onSaved, token }: {
   const [saving, setSaving] = useState(false);
 
   const valid = title.trim() !== "" && starts !== "" && ends !== "" && ends >= starts;
+  const toast = useToast();
 
   async function save() {
     if (!valid) return;
     setSaving(true);
-    await createOffer({
-      title: title.trim(),
-      brand: brand.trim() || null,
-      category: category || null,
-      store_id: store || null,
-      discount_pct: discount ? Number(discount) : null,
-      offer_price: price ? Number(price) : null,
-      starts_at: starts,
-      ends_at: ends,
-      boost_weight: boost,
-      active: true,
-      created_by: "admin",
-    }, token);
-    setSaving(false);
-    setTitle(""); setBrand(""); setCategory(""); setDiscount(""); setPrice(""); setBoost(0);
-    onSaved();
+    try {
+      await createOffer({
+        title: title.trim(),
+        brand: brand.trim() || null,
+        category: category || null,
+        store_id: store || null,
+        discount_pct: discount ? Number(discount) : null,
+        offer_price: price ? Number(price) : null,
+        starts_at: starts,
+        ends_at: ends,
+        boost_weight: boost,
+        active: true,
+        created_by: "admin",
+      }, token);
+      toast.notify(t(UI.toast_saved, lang));
+      setTitle(""); setBrand(""); setCategory(""); setDiscount(""); setPrice(""); setBoost(0);
+      onSaved();
+    } catch (err) {
+      toast.notify((err as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

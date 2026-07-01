@@ -15,6 +15,7 @@ import {
   listLeaves, createLeave, decideLeave, leaveDays,
   getStores, IS_REMOTE,
 } from "../lib/api";
+import { useToast } from "../lib/toast";
 import type {
   Employee, AttendanceStatus, AttendanceSummary,
   Leave, LeaveType, Role, Lang, Store,
@@ -85,12 +86,19 @@ function Employees({ lang, token, stores, storeName, isAdmin }: {
 
   const reload = useCallback(() => { listEmployees(undefined, token).then(setRows).catch(() => setRows([])); }, [token]);
   useEffect(() => { reload(); }, [reload]);
+  const toast = useToast();
 
   async function toggleStatus(e: Employee) {
     setBusy(e.employee_id);
-    await setEmployeeStatus(e.employee_id, e.status === "active" ? "inactive" : "active", token);
-    reload();
-    setBusy(null);
+    try {
+      await setEmployeeStatus(e.employee_id, e.status === "active" ? "inactive" : "active", token);
+      toast.notify(t(UI.toast_saved, lang));
+      reload();
+    } catch (err) {
+      toast.notify((err as Error).message, "error");
+    } finally {
+      setBusy(null);
+    }
   }
 
   if (!rows) return <div className="loading">{t(UI.af_loading, lang)}</div>;
@@ -162,17 +170,24 @@ function AddEmployeeForm({ lang, stores, onSaved, onCancel, token }: {
   const [saving, setSaving] = useState(false);
 
   const valid = employeeId.trim() !== "" && name.trim() !== "";
+  const toast = useToast();
 
   async function save() {
     if (!valid) return;
     setSaving(true);
-    await saveEmployee({
-      employee_id: employeeId.trim(), name: name.trim(),
-      email: email.trim() || null, phone: phone.trim() || null,
-      role, store_id: store || null, title: title.trim() || null, status: "active",
-    }, token);
-    setSaving(false);
-    onSaved();
+    try {
+      await saveEmployee({
+        employee_id: employeeId.trim(), name: name.trim(),
+        email: email.trim() || null, phone: phone.trim() || null,
+        role, store_id: store || null, title: title.trim() || null, status: "active",
+      }, token);
+      toast.notify(t(UI.toast_saved, lang));
+      onSaved();
+    } catch (err) {
+      toast.notify((err as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -245,11 +260,17 @@ function AttendanceTab({ lang, token, stores, defaultStoreId }: {
   }, [store, date, token]);
 
   useEffect(() => { reload(); }, [reload]);
+  const toast = useToast();
 
   async function mark(emp: Employee, status: AttendanceStatus) {
     setMarks((m) => ({ ...m, [emp.employee_id]: status }));
-    await markAttendance({ employee_id: emp.employee_id, store_id: store, date, status, marked_by: "admin" }, token);
-    getAttendanceSummary({ storeId: store, date }, token).then(setSummary).catch(() => {});
+    try {
+      await markAttendance({ employee_id: emp.employee_id, store_id: store, date, status, marked_by: "admin" }, token);
+      getAttendanceSummary({ storeId: store, date }, token).then(setSummary).catch(() => {});
+    } catch (err) {
+      toast.notify((err as Error).message, "error");
+      setMarks((m) => { const n = { ...m }; delete n[emp.employee_id]; return n; });
+    }
   }
 
   return (
@@ -314,12 +335,19 @@ function Leaves({ lang, token }: {
     listEmployees(undefined, token).then(setEmps).catch(() => {});
   }, [token]);
   useEffect(() => { reload(); }, [reload]);
+  const toast = useToast();
 
   async function decide(l: Leave, status: "approved" | "rejected") {
     setBusy(l.id);
-    await decideLeave(l.id, status, "admin", token);
-    reload();
-    setBusy(null);
+    try {
+      await decideLeave(l.id, status, "admin", token);
+      toast.notify(t(UI.toast_saved, lang));
+      reload();
+    } catch (err) {
+      toast.notify((err as Error).message, "error");
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
@@ -375,14 +403,21 @@ function RequestLeaveForm({ lang, emps, onSaved, token }: {
   useEffect(() => { if (!employeeId && emps[0]) setEmployeeId(emps[0].employee_id); }, [emps, employeeId]);
   const days = leaveDays(from, to);
   const valid = employeeId !== "" && to >= from;
+  const toast = useToast();
 
   async function save() {
     if (!valid) return;
     setSaving(true);
-    await createLeave({ employee_id: employeeId, type, from_date: from, to_date: to, days, reason: reason.trim() || null }, token);
-    setSaving(false);
-    setReason("");
-    onSaved();
+    try {
+      await createLeave({ employee_id: employeeId, type, from_date: from, to_date: to, days, reason: reason.trim() || null }, token);
+      toast.notify(t(UI.toast_saved, lang));
+      setReason("");
+      onSaved();
+    } catch (err) {
+      toast.notify((err as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

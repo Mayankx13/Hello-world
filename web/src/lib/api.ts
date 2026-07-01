@@ -115,6 +115,34 @@ function authHeaders(token?: string | null): Record<string, string> {
   return h;
 }
 
+/**
+ * Write helper for user-triggered POST/PATCH/DELETE. Unlike the old fire-and-
+ * forget `.catch(()=>{})` writes, this THROWS a friendly Error on failure so the
+ * calling screen can show it (success/failure feedback — no more dead-feeling
+ * buttons). Callers should try/catch and surface `err.message`.
+ */
+async function writeJSON(path: string, method: string, body: unknown, token?: string | null): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method,
+      headers: authHeaders(token),
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("Network error — check your connection and try again.");
+  }
+  if (!res.ok) {
+    const msg = (await res.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(
+      msg?.message ??
+        (res.status === 401 || res.status === 403
+          ? "Not allowed — you don't have permission for this action."
+          : `Something went wrong (${res.status}).`),
+    );
+  }
+}
+
 export async function saveConfigLive(cfg: EngineConfig, token?: string | null): Promise<void> {
   if (IS_REMOTE) {
     const res = await fetch(`${API_BASE}/config`, { method: "PUT", headers: authHeaders(token), body: JSON.stringify(cfg) });
@@ -661,10 +689,7 @@ export async function listEmployees(opts?: { storeId?: string | null; role?: Rol
 
 /** Create/update an employee. Remote: POST /employees. Offline: localStorage. */
 export async function saveEmployee(rec: EmployeeInput, token?: string | null): Promise<void> {
-  if (IS_REMOTE) {
-    await fetch(`${API_BASE}/employees`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
-    return;
-  }
+  if (IS_REMOTE) { await writeJSON(`${API_BASE}/employees`, "POST", rec, token); return; }
   const m = readLocal<Record<string, Employee>>(EMP_KEY, {});
   const prev = m[rec.employee_id];
   m[rec.employee_id] = {
@@ -685,10 +710,7 @@ export async function saveEmployee(rec: EmployeeInput, token?: string | null): P
 
 /** Activate/deactivate. Remote: PATCH /employees/:id. Offline: localStorage. */
 export async function setEmployeeStatus(employeeId: string, status: "active" | "inactive", token?: string | null): Promise<void> {
-  if (IS_REMOTE) {
-    await fetch(`${API_BASE}/employees/${encodeURIComponent(employeeId)}`, { method: "PATCH", headers: authHeaders(token), body: JSON.stringify({ status }) }).catch(() => {});
-    return;
-  }
+  if (IS_REMOTE) { await writeJSON(`${API_BASE}/employees/${encodeURIComponent(employeeId)}`, "PATCH", { status }, token); return; }
   const seed = await getJSON<{ employees: Employee[] }>(`${BASE}employees-demo.json`).then((d) => d.employees).catch(() => []);
   const m = readLocal<Record<string, Employee>>(EMP_KEY, {});
   const base = m[employeeId] ?? seed.find((e) => e.employee_id === employeeId);
@@ -753,10 +775,7 @@ export async function getAttendanceSummary(opts: { storeId: string; date: string
 
 /** Mark one day's attendance. Remote: POST /attendance. Offline: localStorage. */
 export async function markAttendance(rec: AttendanceInput, token?: string | null): Promise<void> {
-  if (IS_REMOTE) {
-    await fetch(`${API_BASE}/attendance`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
-    return;
-  }
+  if (IS_REMOTE) { await writeJSON(`${API_BASE}/attendance`, "POST", rec, token); return; }
   const m = readLocal<Record<string, Attendance>>(ATT_KEY, {});
   m[attKey(rec.employee_id, rec.date)] = { ...rec, created_at: new Date().toISOString() };
   writeLocal(ATT_KEY, m);
@@ -806,10 +825,7 @@ export async function listLeaves(opts?: { employeeId?: string | null; status?: L
 
 /** Apply for leave. Remote: POST /leaves. Offline: localStorage. */
 export async function createLeave(rec: LeaveInput, token?: string | null): Promise<void> {
-  if (IS_REMOTE) {
-    await fetch(`${API_BASE}/leaves`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
-    return;
-  }
+  if (IS_REMOTE) { await writeJSON(`${API_BASE}/leaves`, "POST", rec, token); return; }
   const rows = readLocal<Leave[]>(LEAVE_KEY, []);
   const days = rec.days ?? leaveDays(rec.from_date, rec.to_date);
   rows.push({ id: Date.now(), employee_id: rec.employee_id, type: rec.type, from_date: rec.from_date, to_date: rec.to_date, days, reason: rec.reason ?? null, status: "pending", created_at: new Date().toISOString() });
@@ -818,10 +834,7 @@ export async function createLeave(rec: LeaveInput, token?: string | null): Promi
 
 /** Approve/reject a leave. Remote: PATCH /leaves/:id. Offline: localStorage. */
 export async function decideLeave(id: number, status: "approved" | "rejected" | "cancelled", approverId: string, token?: string | null): Promise<void> {
-  if (IS_REMOTE) {
-    await fetch(`${API_BASE}/leaves/${id}`, { method: "PATCH", headers: authHeaders(token), body: JSON.stringify({ status, approverId }) }).catch(() => {});
-    return;
-  }
+  if (IS_REMOTE) { await writeJSON(`${API_BASE}/leaves/${id}`, "PATCH", { status, approverId }, token); return; }
   const rows = readLocal<Leave[]>(LEAVE_KEY, []);
   const i = rows.findIndex((l) => l.id === id);
   if (i >= 0) { rows[i] = { ...rows[i], status, approver_id: approverId, decided_at: new Date().toISOString() }; writeLocal(LEAVE_KEY, rows); }
@@ -939,10 +952,7 @@ export async function listFeedback(opts?: { storeId?: string | null }, token?: s
 
 /** Submit feedback (anonymous allowed; PUBLIC). Remote: POST /feedback. Offline: localStorage. */
 export async function submitFeedback(rec: FeedbackInput, token?: string | null): Promise<void> {
-  if (IS_REMOTE) {
-    await fetch(`${API_BASE}/feedback`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(rec) }).catch(() => {});
-    return;
-  }
+  if (IS_REMOTE) { await writeJSON(`${API_BASE}/feedback`, "POST", rec, token); return; }
   const rows = readLocal<Feedback[]>(FB_KEY, []);
   rows.push({ id: Date.now(), employee_id: rec.anonymous ? null : rec.employee_id ?? null, store_id: rec.store_id ?? null, category: rec.category, rating: rec.rating ?? null, message: rec.message ?? null, anonymous: rec.anonymous ? 1 : 0, status: "open", created_at: new Date().toISOString() });
   writeLocal(FB_KEY, rows);
@@ -985,10 +995,7 @@ export async function listAllOffers(token?: string | null): Promise<Offer[]> {
 /** Create an offer. Remote: POST /offers. Offline: localStorage. */
 export async function createOffer(rec: OfferInput, token?: string | null): Promise<void> {
   const offerId = rec.offer_id ?? `off-${Math.random().toString(36).slice(2, 10)}`;
-  if (IS_REMOTE) {
-    await fetch(`${API_BASE}/offers`, { method: "POST", headers: authHeaders(token), body: JSON.stringify({ ...rec, offer_id: offerId }) }).catch(() => {});
-    return;
-  }
+  if (IS_REMOTE) { await writeJSON(`${API_BASE}/offers`, "POST", { ...rec, offer_id: offerId }, token); return; }
   const overlay = readLocal<Offer[]>(OFFERS_KEY, []);
   overlay.push({
     offer_id: offerId, title: rec.title, description: rec.description ?? null,
@@ -1002,10 +1009,7 @@ export async function createOffer(rec: OfferInput, token?: string | null): Promi
 
 /** Delete an offer. Remote: DELETE /offers/:id. Offline: localStorage. */
 export async function deleteOffer(offerId: string, token?: string | null): Promise<void> {
-  if (IS_REMOTE) {
-    await fetch(`${API_BASE}/offers/${encodeURIComponent(offerId)}`, { method: "DELETE", headers: authHeaders(token) }).catch(() => {});
-    return;
-  }
+  if (IS_REMOTE) { await writeJSON(`${API_BASE}/offers/${encodeURIComponent(offerId)}`, "DELETE", undefined, token); return; }
   const overlay = readLocal<Offer[]>(OFFERS_KEY, []).filter((o) => o.offer_id !== offerId);
   writeLocal(OFFERS_KEY, overlay);
   const removed = readLocal<string[]>(`${OFFERS_KEY}.removed`, []);

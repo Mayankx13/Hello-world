@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { JSX } from "react";
 import { submitFeedback, listFeedback } from "../lib/api";
+import { useToast } from "../lib/toast";
 import type { AuthUser, Feedback as FeedbackRow, FeedbackCategory, Lang } from "../lib/api";
 import { UI, t } from "../lib/i18n";
 
@@ -36,22 +37,29 @@ export default function Feedback({ lang, user, token }: { lang: Lang; user: Auth
     listFeedback(opts, token).then(setRecent).catch(() => setRecent([]));
   }, [isStaffAdmin, user.role, user.storeId, token]);
   useEffect(() => { reload(); }, [reload]);
+  const toast = useToast();
 
   async function send() {
     setSaving(true);
-    await submitFeedback({
-      category,
-      rating: rating || null,
-      message: message.trim() || null,
-      anonymous: anon,
-      employee_id: anon ? null : user.id,
-      store_id: user.storeId,
-    }, token);
-    setSaving(false);
-    setSent(true);
-    setMessage("");
-    setRating(0);
-    reload();
+    try {
+      await submitFeedback({
+        category,
+        rating: rating || null,
+        message: message.trim() || null,
+        anonymous: anon,
+        employee_id: anon ? null : user.id,
+        store_id: user.storeId,
+      }, token);
+      toast.notify(t(UI.toast_sent, lang));
+      setSent(true);
+      setMessage("");
+      setRating(0);
+      reload();
+    } catch (err) {
+      toast.notify((err as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

@@ -6,6 +6,7 @@
 import { useState } from "react";
 import type { JSX } from "react";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { ToastProvider } from "./lib/toast";
 import type { Lang } from "./lib/api";
 import Login from "./screens/Login";
 import Shell from "./components/Shell";
@@ -14,9 +15,11 @@ import "./app.css";
 
 export default function App(): JSX.Element {
   return (
-    <AuthProvider>
-      <Root />
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <Root />
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 
