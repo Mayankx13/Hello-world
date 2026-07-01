@@ -1,0 +1,61 @@
+{
+  "_comment": "Copy to config.json and fill in. config.json is gitignored (holds the token + DB creds).",
+
+  "pushUrl": "https://api-dev.amaflip.in/inventory/push",
+  "adminToken": "PASTE_YOUR_ADMIN_TOKEN_HERE",
+
+  "mode": "sql",
+
+  "sql": {
+    "server": "localhost\\BUSY",
+    "database": "YOUR_BUSY_COMPANY_DB",
+    "auth": "windows",
+    "user": "",
+    "password": "",
+    "query": "-- Item-wise stock across all locations. Replace with the real query once schema discovery / your BUSY vendor confirms table + column names. It must RETURN one row per SKU per store with the columns named in columnMap below. Example shape:\n-- SELECT ItemCode, ItemName, Company AS Brand, Category, Location, SalePrice, MRP, ClosingQty FROM <busy_stock_view>;"
+  },
+
+  "csv": {
+    "_comment": "Only used when mode='csv'. Point at a fixed file, OR set pickNewestIn+filter to auto-pick the newest BUSY export in a folder.",
+    "path": "",
+    "pickNewestIn": "C:\\LIQO\\busy-exports",
+    "filter": "*.csv"
+  },
+
+  "columnMap": {
+    "_comment": "LEFT = LIQO field, RIGHT = the exact column name in your SQL result / CSV header. sku+store+category+brand+price+stockQty are the minimum.",
+    "sku": "ItemCode",
+    "name": "ItemName",
+    "model": "",
+    "brand": "Company",
+    "category": "Category",
+    "store": "Location",
+    "price": "SalePrice",
+    "mrp": "MRP",
+    "stockQty": "ClosingQty",
+    "capacityText": "",
+    "starRating": "",
+    "inverter": ""
+  },
+
+  "categoryMap": {
+    "_comment": "Map BUSY category/group text (any case) to the 4 engine categories. Rows in other categories are skipped.",
+    "AIR CONDITIONER": "ac", "AC": "ac", "SPLIT AC": "ac", "WINDOW AC": "ac",
+    "TELEVISION": "tv", "LED TV": "tv", "TV": "tv", "SMART TV": "tv",
+    "REFRIGERATOR": "fridge", "FRIDGE": "fridge",
+    "WASHING MACHINE": "wm", "WASHER": "wm"
+  },
+
+  "storeMap": {
+    "_comment": "Map BUSY location/branch/godown text (any case) to LIQO store slugs. Unmatched locations are auto-slugged.",
+    "ZIRAKPUR": "zirakpur",
+    "PANCHKULA": "panchkula",
+    "CHANDIGARH": "chandigarh",
+    "KHARAR": "kharar",
+    "PINJORE": "pinjore",
+    "SOLAN": "solan",
+    "RAMGARH": "ramgarh"
+  },
+
+  "defaultChannel": "retail"
+}
