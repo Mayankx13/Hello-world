@@ -44,6 +44,12 @@ async function runSync(env: Env): Promise<{ raw: number; written: number; source
 export default {
   // Hourly Cron Trigger.
   async scheduled(_event: unknown, env: Env, ctx: { waitUntil: (p: Promise<unknown>) => void }): Promise<void> {
+    // In push mode an on-prem connector owns the snapshot — the hourly cron must
+    // NOT overwrite live stock with the bundled seed, so it idles.
+    if (sourceKind(env) === "push") {
+      console.log("[liqo-sync] push mode — external connector owns inventory; cron idle");
+      return;
+    }
     ctx.waitUntil(
       runSync(env).then(
         (r) => console.log(`[liqo-sync] ok ${r.written}/${r.raw} from ${r.source} @ ${r.at}`),

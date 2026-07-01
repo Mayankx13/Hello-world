@@ -15,7 +15,8 @@
 import { recommend } from "../../src/engine/recommend";
 import type { Category, EngineBoost, EngineConfig, RecommendRequest, RecommendResult, RecommendationCard } from "../../src/engine/types";
 import { computeLeaderboard, isBill, type SessionRecord, type RosterEntry, type LeaderboardRow } from "../../src/engine/points";
-import { loadInventory, str, num, boolNum, jstr, type D1Like } from "../../src/shared/d1";
+import { transformInventory, type RawInventoryRow } from "../../src/engine/mapper";
+import { loadInventory, replaceInventory, str, num, boolNum, jstr, type D1Like } from "../../src/shared/d1";
 import { loadConfig, saveConfig, loadQuestionnaire, saveQuestionnaire } from "../../src/shared/config";
 import { authorRationales, llmEnabled, suggestQuestions, type LlmEnv, type ExplainCard, type QuestionStat } from "./llm";
 import * as dao from "./dao";
@@ -150,6 +151,9 @@ async function route(req: Request, env: Env, url: URL, pathname: string, method:
       // --- engine test harness ---
       if (pathname === "/engine/test" && method === "POST") return handleEngineTest(req, env);
 
+      // --- inventory push (on-prem BUSY connector replaces the D1 snapshot) ---
+      if (pathname === "/inventory/push" && method === "POST") return handleInventoryPush(req, env);
+
       // --- analytics (views) ---
       if (pathname === "/analytics/store-daily" && method === "GET") return handleAnalyticsStoreDaily(req, env, url);
       if (pathname === "/analytics/demand" && method === "GET") return handleAnalyticsDemand(req, env, url);
@@ -244,6 +248,23 @@ async function enrichRationales(env: Env, result: RecommendResult, req: Recommen
 
 function toExplainCard(c: RecommendationCard, category: Category): ExplainCard {
   return { tier: c.tier, brand: c.brand, model: c.model, category, price: c.price, fitReasons: c.fitReasons, fitLine: c.fitLine };
+}
+
+// ---------------------------------------------------------------------------
+// POST /inventory/push — the on-prem BUSY connector replaces the D1 snapshot.
+// Same transform + atomic replace the Sync Worker uses; admin-gated + audited
+// (the central audit hook logs every push). Accepts { rows: [...] } or a bare
+// JSON array of RawInventoryRow. One central BUSY → one full-snapshot push.
+// ---------------------------------------------------------------------------
+async function handleInventoryPush(req: Request, env: Env): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  const body = (await req.json().catch(() => null)) as { rows?: RawInventoryRow[] } | RawInventoryRow[] | null;
+  const rows = Array.isArray(body) ? body : body?.rows;
+  if (!Array.isArray(rows)) return badRequest(env, "expected { rows: [...] } or a JSON array");
+  const cfg = await loadConfig(env.DB);
+  const items = transformInventory(rows, cfg, nowISO());
+  const written = await replaceInventory(env.DB, items);
+  return json(env, { ok: true, raw: rows.length, written, source: "push:busy-connector", at: nowISO() });
 }
 
 // ---------------------------------------------------------------------------
