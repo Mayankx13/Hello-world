@@ -438,8 +438,33 @@ SELECT c.customer_id, c.phone, c.name, c.premium_tier, c.preferred_payment,
 FROM customers c;
 
 -- ===========================================================================
+-- 6 · AUDIT — one row per state-changing request (who did what, when, outcome)
+-- ===========================================================================
+-- Written centrally by the API for every POST/PUT/PATCH/DELETE. Deliberately NO
+-- foreign key on actor_id: the trail must survive even if that employee row is
+-- later removed. Admin-read only (GET /audit).
+CREATE TABLE IF NOT EXISTS audit_log (
+  id           INTEGER PRIMARY KEY,
+  ts           TEXT NOT NULL DEFAULT (datetime('now')),
+  actor_id     TEXT,               -- employees.employee_id from the bearer token; NULL = anonymous/public
+  actor_role   TEXT,               -- admin | manager | salesperson | NULL
+  method       TEXT NOT NULL,      -- POST | PUT | PATCH | DELETE
+  path         TEXT NOT NULL,      -- request pathname
+  resource     TEXT,               -- first path segment (employees, offers, leaves, ...)
+  resource_id  TEXT,               -- trailing path id when present
+  status       INTEGER NOT NULL,   -- HTTP status of the response
+  outcome      TEXT NOT NULL CHECK (outcome IN ('ok','denied','error')),
+  ip           TEXT,               -- CF-Connecting-IP
+  ms           INTEGER             -- handler duration (ms)
+);
+CREATE INDEX IF NOT EXISTS idx_audit_ts       ON audit_log(ts);
+CREATE INDEX IF NOT EXISTS idx_audit_actor    ON audit_log(actor_id, ts);
+CREATE INDEX IF NOT EXISTS idx_audit_resource ON audit_log(resource, ts);
+
+-- ===========================================================================
 -- MIGRATION NOTES (existing DB, run once; harmless on a fresh schema)
 --   ALTER TABLE sessions ADD COLUMN user_id TEXT;
 --   ALTER TABLE sessions ADD COLUMN customer_id TEXT;
+--   -- audit_log + its indexes are CREATE ... IF NOT EXISTS, so they self-apply.
 -- New installs get everything above directly.
 -- ===========================================================================

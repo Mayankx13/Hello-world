@@ -48,7 +48,10 @@ export const initialState: AppState = {
   qIndex: 0,
   answers: [],
   budgetBand: null,
-  stretch: false,
+  // Default ON so the guided flow shows the SAME full ladder as the admin Engine
+  // Test — including the premium "worth the stretch" card and the wider price
+  // ceiling. The customer can still say "No" on the Budget screen.
+  stretch: true,
   exchange: false,
   result: null,
   picked: null,

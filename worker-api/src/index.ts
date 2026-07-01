@@ -53,14 +53,33 @@ function salesRoster(): Record<string, RosterEntry> {
 
 const CATEGORIES: Category[] = ["ac", "tv", "fridge", "wm"];
 
+const AUDIT_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+// High-frequency compute / telemetry POSTs that aren't business mutations — kept
+// out of the audit trail so it stays a clean "who changed what, when" record.
+const AUDIT_SKIP = new Set(["/recommend", "/explain", "/session", "/engine/test", "/questions/suggest"]);
+
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     const { pathname } = url;
     const method = req.method.toUpperCase();
 
     if (method === "OPTIONS") return cors(env, new Response(null, { status: 204 }));
 
+    // One place, every request: run the router, then — for state-changing calls —
+    // write a best-effort audit row OFF the response path (waitUntil), so the
+    // trail is complete but never adds latency to or breaks the response.
+    const startedAt = Date.now();
+    const res = await route(req, env, url, pathname, method);
+    if (AUDIT_METHODS.has(method) && !AUDIT_SKIP.has(pathname)) {
+      ctx.waitUntil(recordAudit(req, env, pathname, method, res.status, Date.now() - startedAt));
+    }
+    return res;
+  },
+};
+
+/** All route handling — returns a Response and never throws (500 on any error). */
+async function route(req: Request, env: Env, url: URL, pathname: string, method: string): Promise<Response> {
     try {
       if (pathname === "/" || pathname === "/health") {
         return json(env, { ok: true, service: "liqo-api", time: new Date().toISOString() });
@@ -136,12 +155,53 @@ export default {
       if (pathname === "/analytics/demand" && method === "GET") return handleAnalyticsDemand(req, env, url);
       if (pathname === "/analytics/employee-month" && method === "GET") return handleAnalyticsEmployeeMonth(req, env, url);
 
+      // --- audit trail (admin read; writes happen centrally in fetch) ---
+      if (pathname === "/audit" && method === "GET") return handleListAudit(req, env, url);
+
       return json(env, { error: "not_found", path: pathname }, 404);
     } catch (err) {
       return json(env, { error: "internal", message: String((err as Error)?.message ?? err) }, 500);
     }
-  },
-};
+}
+
+/** Best-effort audit write — actor from the bearer token; swallows all errors so
+ *  it can never surface to (or break) the request being logged. */
+async function recordAudit(
+  req: Request, env: Env, pathname: string, method: string, status: number, ms: number,
+): Promise<void> {
+  try {
+    const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+    const payload = token ? await verifyToken(env, token) : null;
+    const parts = pathname.split("/").filter(Boolean);
+    const outcome: "ok" | "denied" | "error" =
+      status < 400 ? "ok" : status === 401 || status === 403 ? "denied" : "error";
+    await dao.writeAudit(env.DB, {
+      actorId: payload?.sub ?? null,
+      actorRole: payload?.role ?? null,
+      method,
+      path: pathname,
+      resource: parts[0] ?? null,
+      resourceId: parts.length > 1 ? decodeURIComponent(parts[parts.length - 1]) : null,
+      status,
+      outcome,
+      ip: req.headers.get("cf-connecting-ip"),
+      ms,
+    });
+  } catch {
+    /* audit is best-effort — it must never surface an error to the caller */
+  }
+}
+
+/** GET /audit — admin-only view of the recent activity trail. */
+async function handleListAudit(req: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  const rows = await dao.listAudit(env.DB, {
+    limit: num(url.searchParams.get("limit")) ?? 200,
+    actorId: url.searchParams.get("actorId") ?? undefined,
+    resource: url.searchParams.get("resource") ?? undefined,
+  });
+  return json(env, { audit: rows });
+}
 
 // ---------------------------------------------------------------------------
 // POST /recommend

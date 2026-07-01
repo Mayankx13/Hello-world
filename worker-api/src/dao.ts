@@ -1171,3 +1171,62 @@ export async function employeeMonth(
   const { results } = await db.prepare(sql).bind(...binds).all<EmployeeMonthRow>();
   return results;
 }
+
+// ===========================================================================
+// Audit log — write one row per state-changing request; read (admin) to review.
+// ===========================================================================
+export interface AuditEntry {
+  actorId: string | null;
+  actorRole: string | null;
+  method: string;
+  path: string;
+  resource: string | null;
+  resourceId: string | null;
+  status: number;
+  outcome: "ok" | "denied" | "error";
+  ip: string | null;
+  ms: number;
+}
+export async function writeAudit(db: D1Like, e: AuditEntry): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO audit_log (actor_id, actor_role, method, path, resource, resource_id, status, outcome, ip, ms)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    )
+    .bind(
+      str(e.actorId), str(e.actorRole), e.method, e.path, str(e.resource),
+      str(e.resourceId), e.status, e.outcome, str(e.ip), num(e.ms),
+    )
+    .run();
+}
+
+export interface AuditRow {
+  id: number;
+  ts: string;
+  actor_id: string | null;
+  actor_role: string | null;
+  method: string;
+  path: string;
+  resource: string | null;
+  resource_id: string | null;
+  status: number;
+  outcome: string;
+  ip: string | null;
+  ms: number | null;
+}
+export async function listAudit(
+  db: D1Like,
+  opts: { limit?: number; actorId?: string; resource?: string } = {},
+): Promise<AuditRow[]> {
+  const clauses: string[] = [];
+  const binds: unknown[] = [];
+  if (opts.actorId) { clauses.push("actor_id = ?"); binds.push(opts.actorId); }
+  if (opts.resource) { clauses.push("resource = ?"); binds.push(opts.resource); }
+  const sql =
+    "SELECT id, ts, actor_id, actor_role, method, path, resource, resource_id, status, outcome, ip, ms FROM audit_log" +
+    (clauses.length ? " WHERE " + clauses.join(" AND ") : "") +
+    " ORDER BY id DESC LIMIT ?";
+  binds.push(Math.min(opts.limit ?? 200, 1000));
+  const { results } = await db.prepare(sql).bind(...binds).all<AuditRow>();
+  return results;
+}

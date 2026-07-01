@@ -17,12 +17,13 @@ import Incentives from "../screens/Incentives";
 import Feedback from "../screens/Feedback";
 import Offers from "../screens/Offers";
 import Promotions from "../screens/Promotions";
+import Audit from "../screens/Audit";
 import Placeholder from "../screens/Placeholder";
 import AccountModal from "./AccountModal";
 
 type Section =
   | "sales" | "inventory" | "command" | "leaderboard" | "config" | "engine-test" | "data"
-  | "people" | "incentives" | "feedback" | "offers" | "promotions";
+  | "people" | "incentives" | "feedback" | "offers" | "promotions" | "audit";
 
 interface NavDef { id: Section; roles: Role[]; icon: keyof typeof NavIcon; label: keyof typeof UI }
 const NAV: NavDef[] = [
@@ -37,6 +38,7 @@ const NAV: NavDef[] = [
   { id: "offers", roles: ["admin"], icon: "offers", label: "nav_offers" },
   { id: "config", roles: ["admin"], icon: "config", label: "nav_config" },
   { id: "engine-test", roles: ["admin"], icon: "command", label: "nav_engine_test" },
+  { id: "audit", roles: ["admin"], icon: "data", label: "nav_audit" },
   { id: "data", roles: ["admin"], icon: "data", label: "nav_data" },
 ];
 const DEFAULT_SECTION: Record<Role, Section> = { admin: "command", manager: "inventory", salesperson: "sales" };
@@ -104,6 +106,9 @@ export default function Shell({ lang, onToggleLang }: { lang: Lang; onToggleLang
       break;
     case "promotions":
       body = <Promotions lang={lang} storeId={isAdmin ? (selectedStoreId ?? "") : concreteStoreId} />;
+      break;
+    case "audit":
+      body = <Audit lang={lang} token={IS_REMOTE ? token : null} />;
       break;
     default:
       body = <Placeholder lang={lang} title={t(UI.nav_data, lang)} icon="data"

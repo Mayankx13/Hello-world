@@ -572,6 +572,18 @@ export async function getDemandRequests(opts: { storeId?: string } = {}, token?:
   return getJSONAuth<{ demand: DemandRequestRow[] }>(`${API_BASE}/demand${toQuery(opts)}`, token).then((d) => d.demand).catch(() => []);
 }
 
+// ---- audit trail (admin — platform activity log) ----
+export interface AuditLogRow {
+  id: number; ts: string; actor_id: string | null; actor_role: string | null;
+  method: string; path: string; resource: string | null; resource_id: string | null;
+  status: number; outcome: string; ip: string | null; ms: number | null;
+}
+/** Recent platform activity — every state-changing action. Admin, remote-only. */
+export async function getAuditLog(opts: { limit?: number; resource?: string } = {}, token?: string | null): Promise<AuditLogRow[]> {
+  if (!IS_REMOTE) return [];
+  return getJSONAuth<{ audit: AuditLogRow[] }>(`${API_BASE}/audit${toQuery(opts)}`, token).then((d) => d.audit).catch(() => []);
+}
+
 // ===========================================================================
 // Admin frontend — People (employees, attendance, leaves), Incentives,
 // Feedback and Offers management.
