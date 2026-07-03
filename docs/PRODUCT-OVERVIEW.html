@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIQO — Product Overview | Amaflip</title>
+<style>
+  :root{ --orange:#F1641E; --amber:#F6A21E; --amber-deep:#D9820A; --espresso:#211A12; --ink:#2b2b2b;
+         --muted:#6b6255; --line:#e7ddcf; --mint:#1B7F4D; --paper:#fff; --cream:#faf5ee; }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+        color:var(--ink); line-height:1.55; background:#f0eae1; }
+  .page{ max-width:840px; margin:20px auto; background:var(--paper); padding:0 0 40px;
+         box-shadow:0 12px 44px rgba(33,26,18,.14); border-radius:6px; overflow:hidden }
+  .cover{ background:linear-gradient(135deg,#211A12 0%,#3a2a18 60%,#7a3d12 100%); color:#fff; padding:44px 46px 40px }
+  .cover .brand{ font-weight:800; letter-spacing:.16em; font-size:12.5px; text-transform:uppercase; color:#ffd9be }
+  .cover h1{ font-size:40px; margin:10px 0 2px; letter-spacing:-.02em; line-height:1.05 }
+  .cover .tag{ font-size:17px; color:#f3ddca; max-width:60ch }
+  .cover .meta{ margin-top:22px; font-size:12.5px; color:#e9c9ac; display:flex; gap:22px; flex-wrap:wrap }
+  .body{ padding:8px 46px 0 }
+  h2{ font-size:20px; margin:30px 0 6px; color:var(--espresso); letter-spacing:-.01em }
+  h2 .n{ color:var(--orange); font-weight:800; margin-right:8px }
+  h3{ font-size:15px; margin:16px 0 4px; color:var(--espresso) }
+  p{ margin:8px 0 }
+  .lead{ font-size:15px }
+  .summary{ background:var(--cream); border:1px solid var(--line); border-left:4px solid var(--orange);
+            border-radius:8px; padding:14px 18px; margin:18px 0 }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0 }
+  .card{ border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#fff }
+  .card h4{ margin:0 0 3px; font-size:14.5px; color:var(--espresso) }
+  .card h4 .ic{ margin-right:7px }
+  .card p{ margin:0; font-size:13px; color:#4a4238 }
+  table{ width:100%; border-collapse:collapse; margin:12px 0; font-size:13px }
+  th,td{ border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top }
+  th{ background:var(--cream); font-weight:700 }
+  ul.tight{ margin:6px 0; padding-left:20px } ul.tight li{ margin:3px 0; font-size:13.5px }
+  .pill{ display:inline-block; border-radius:999px; padding:2px 9px; font-size:11px; font-weight:700 }
+  .live{ background:#E7F4EC; color:var(--mint) } .soon{ background:#FBEFE0; color:var(--amber-deep) }
+  .flow{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:10px 0; font-size:12.5px }
+  .flow span{ background:var(--cream); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-weight:600 }
+  .flow b{ color:var(--orange) }
+  .kpi{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:14px 0 }
+  .kpi div{ background:var(--cream); border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center }
+  .kpi b{ display:block; font-size:22px; color:var(--espresso) } .kpi span{ font-size:11.5px; color:var(--muted) }
+  code{ background:#f3ece1; padding:1px 6px; border-radius:5px; font-family:Consolas,monospace; font-size:12px; color:#7a3b12 }
+  footer{ margin:26px 46px 0; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:12px }
+  @media print{
+    body{ background:#fff } .page{ box-shadow:none; margin:0; max-width:none; border-radius:0 }
+    .cover,.body,footer{ padding-left:12mm; padding-right:12mm }
+    h2{ page-break-after:avoid } table,.card,.summary,.kpi,.grid2{ page-break-inside:avoid }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="cover">
+    <div class="brand">⚡ Amaflip · Product Document</div>
+    <h1>LIQO</h1>
+    <div class="tag">In‑store recommendation &amp; retail‑intelligence platform for multi‑brand electronics stores — turning every salesperson into an expert and every store into a data‑driven operation.</div>
+    <div class="meta">
+      <span>Product: LIQO</span><span>Company: Amaflip</span>
+      <span>Category: Retail SaaS (PWA)</span><span>Markets: North India · 7 stores</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="summary">
+      <b>Executive summary.</b> LIQO is a mobile‑first web app used on the shop floor of Amaflip's electronics
+      stores. It guides a salesperson through a short conversation with the customer and instantly recommends the
+      best <b>in‑stock</b> air conditioners, TVs, refrigerators and washing machines for that customer's needs and
+      budget — each with a warm, honest, bilingual reason to buy. Behind the counter it doubles as a management
+      platform: live inventory health, demand signals, staff performance, incentives, offers and a full audit
+      trail. Recommendations are produced by a <b>deterministic engine</b> (fast, auditable, always in‑stock),
+      with AI used only to phrase the pitch — so the store can trust every suggestion.
+    </div>
+
+    <h2><span class="n">1</span>The problem we solve</h2>
+    <p class="lead">Electronics retail is high‑consideration and high‑SKU. A customer picking an AC or fridge faces
+      dozens of models and jargon (tonnage, star rating, inverter, capacity); a salesperson can't hold 2,000 live
+      SKUs, prices and stock in their head, and often defaults to whatever they know — missing the best fit, the
+      upsell, and the attach‑on. Meanwhile management lacks a real‑time view of what's selling, what's ageing, and
+      how each store and salesperson is performing.</p>
+    <p>LIQO closes both gaps at once: a <b>guided, honest recommendation</b> at the point of sale, and the
+      <b>operational intelligence</b> that falls out of every interaction.</p>
+
+    <h2><span class="n">2</span>What LIQO is</h2>
+    <div class="grid2">
+      <div class="card"><h4><span class="ic">📱</span>An installable app (PWA)</h4><p>Runs on any phone/tablet — installable, works offline, no app store. Bilingual English / हिंदी.</p></div>
+      <div class="card"><h4><span class="ic">🧭</span>A guided sales assistant</h4><p>A 3‑minute journey from "what do you need?" to a ranked Good / Better / Best / Stretch shortlist.</p></div>
+      <div class="card"><h4><span class="ic">🧮</span>A recommendation engine</h4><p>Deterministic ranking over live, in‑stock inventory — explainable and instant.</p></div>
+      <div class="card"><h4><span class="ic">📊</span>A management platform</h4><p>Inventory health, demand, people, incentives, offers, feedback and an audit trail — one place.</p></div>
+    </div>
+
+    <h2><span class="n">3</span>Who uses it</h2>
+    <table>
+      <tr><th>Role</th><th>What they get</th></tr>
+      <tr><td><b>Salesperson</b></td><td>The guided journey, instant in‑stock recommendations with talking points, add‑on suggestions, customer recall, their leaderboard rank &amp; incentives.</td></tr>
+      <tr><td><b>Store Manager</b></td><td>Their store's inventory health, attendance &amp; leave approvals, team performance, feedback.</td></tr>
+      <tr><td><b>Admin / HQ</b></td><td>All stores: Command Centre analytics, offers, incentives, engine tuning, staff &amp; store control, the activity log.</td></tr>
+      <tr><td><b>Customer</b> (indirect)</td><td>A faster, clearer, more honest buying experience — and recall on their next visit (with consent).</td></tr>
+    </table>
+
+    <h2><span class="n">4</span>Core functionalities</h2>
+    <p>All modules below are <span class="pill live">Live</span> unless marked <span class="pill soon">Roadmap</span>.</p>
+    <table>
+      <tr><th>Module</th><th>What it does</th></tr>
+      <tr><td><b>Guided Sales Assistant</b> <span class="pill live">Live</span></td><td>Welcome → category → needs questions → budget → results → add‑ons → outcome. Kiosk mode keeps the screen awake; every journey is logged.</td></tr>
+      <tr><td><b>Recommendation engine</b> <span class="pill live">Live</span></td><td>Ranks real in‑stock products into Good/Better/Best + a "worth the stretch" upsell, honouring capacity, budget band, star rating, margin, ageing stock and live offers.</td></tr>
+      <tr><td><b>AI sales rationale</b> <span class="pill live">Live</span></td><td>Claude Haiku writes one warm, honest "why this fits you" line per card (EN/हिं) — strictly from the engine's facts, never inventing specs.</td></tr>
+      <tr><td><b>Customer recall (CRM‑lite)</b> <span class="pill live">Live</span></td><td>Look up a returning customer by phone → their brands, tier and history tailor the picks. Consent‑gated and erasable (DPDP‑compliant).</td></tr>
+      <tr><td><b>People &amp; store ops</b> <span class="pill live">Live</span></td><td>Employees, roles, attendance, leave apply/approve. A salesperson's store is fixed; only an admin can move them.</td></tr>
+      <tr><td><b>Gamification &amp; incentives</b> <span class="pill live">Live</span></td><td>Leaderboard, milestones, points (50 pts = ₹1), and an incentive ledger with monthly &amp; total pay‑out history.</td></tr>
+      <tr><td><b>Offers &amp; Promotions</b> <span class="pill live">Live</span></td><td>Admins create offers that also <i>boost</i> ranking; staff see live promotions to pitch.</td></tr>
+      <tr><td><b>Feedback</b> <span class="pill live">Live</span></td><td>Categorised staff feedback, including anonymous — surfaced to management.</td></tr>
+      <tr><td><b>Command Centre</b> <span class="pill live">Live</span></td><td>Cross‑store catalog health (per category/store, ageing), demand analysis, daily store metrics, AI‑suggested questionnaire improvements.</td></tr>
+      <tr><td><b>Engine console &amp; live tuning</b> <span class="pill live">Live</span></td><td>Admins test the engine with any inputs and adjust its parameters &amp; the questionnaire live — no redeploy.</td></tr>
+      <tr><td><b>Activity log (audit)</b> <span class="pill live">Live</span></td><td>Every change (who / what / when / outcome) recorded automatically for accountability.</td></tr>
+      <tr><td><b>Accounts &amp; roles</b> <span class="pill live">Live</span></td><td>Per‑person login (phone/email), role‑based access, self‑service password change.</td></tr>
+      <tr><td><b>Live inventory sync</b> <span class="pill live">Live</span></td><td>Stock refreshed from the BUSY ERP so recommendations are always current and in‑stock.</td></tr>
+      <tr><td><b>Customer education</b> <span class="pill soon">Roadmap</span></td><td>Plain‑language "why this spec matters" explainers + calculators (room→tonnage, family→litres).</td></tr>
+      <tr><td><b>Interactive product page &amp; in‑home view</b> <span class="pill soon">Roadmap</span></td><td>Rich detail page + "see the appliance in your room" (photo/AR) before buying.</td></tr>
+    </table>
+
+    <h2><span class="n">5</span>How the sales journey works</h2>
+    <div class="flow">
+      <span>👋 Welcome<br><small>+ optional phone recall</small></span><b>→</b>
+      <span>🧊 Category</span><b>→</b>
+      <span>❓ Needs<br><small>room, family, usage</small></span><b>→</b>
+      <span>💰 Budget<br><small>Good/Better/Best</small></span><b>→</b>
+      <span>✨ Results<br><small>ranked + reasons</small></span><b>→</b>
+      <span>➕ Add‑ons</span><b>→</b>
+      <span>✅ Outcome<br><small>logged</small></span>
+    </div>
+    <p>Each completed journey feeds the intelligence loop: leaderboard points, demand signals, conversion
+      analytics and (with consent) the customer's history for next time.</p>
+
+    <h2><span class="n">6</span>The recommendation approach — our differentiator</h2>
+    <p>LIQO splits the job in two so recommendations are both <b>trustworthy</b> and <b>persuasive</b>:</p>
+    <table>
+      <tr><th></th><th>Deterministic engine — decides <i>what</i></th><th>AI (Haiku) — decides <i>how to say it</i></th></tr>
+      <tr><td>Role</td><td>Ranks the products</td><td>Writes the one‑line pitch</td></tr>
+      <tr><td>Guarantee</td><td>Only real, in‑stock, in‑budget items; same input → same result; fully explainable &amp; testable</td><td>Warm, bilingual, human — but constrained to the engine's facts; can't invent or reorder</td></tr>
+      <tr><td>Why</td><td>A store must trust every suggestion and never pitch something it can't sell</td><td>Templates feel robotic; language is where AI genuinely helps</td></tr>
+    </table>
+    <p>The engine is business‑controllable — management can push margin, clear ageing stock, apply offer boosts or
+      exclude brands — all as live, auditable settings.</p>
+
+    <h2><span class="n">7</span>Data foundation (DBMS)</h2>
+    <p>A normalised, integrity‑enforced cloud database is the backbone — six domains, one source of truth:</p>
+    <ul class="tight">
+      <li><b>Reference</b> — stores, engine configuration</li>
+      <li><b>Inventory</b> — the hourly live‑stock snapshot from BUSY</li>
+      <li><b>People</b> — employees, attendance, leaves, milestones, incentives, feedback</li>
+      <li><b>Customers</b> — profiles, brand affinities, interaction timeline (consent‑gated)</li>
+      <li><b>Commerce</b> — sales journeys, products suggested, offers, unmet‑demand requests</li>
+      <li><b>Analytics &amp; Audit</b> — store/demand/performance views + the activity log</li>
+    </ul>
+
+    <h2><span class="n">8</span>Architecture &amp; technology</h2>
+    <div class="grid2">
+      <div class="card"><h4>Front end</h4><p>React + TypeScript PWA (installable, offline, mobile‑first, bilingual).</p></div>
+      <div class="card"><h4>Edge back end</h4><p>Two Cloudflare Workers — the API and the hourly inventory sync — running close to each store.</p></div>
+      <div class="card"><h4>Database</h4><p>Cloudflare D1 (SQLite) — the app reads only this snapshot, never the ERP live.</p></div>
+      <div class="card"><h4>AI</h4><p>Claude Haiku 4.5 for the rationale line, tightly constrained with a deterministic fallback.</p></div>
+      <div class="card"><h4>ERP integration</h4><p>BUSY (on‑prem MS SQL Server) → a secure, outbound‑only connector pushes stock to the cloud.</p></div>
+      <div class="card"><h4>Delivery</h4><p>Cloudflare Pages + GitHub Actions CI/CD — tests‑gated, one‑click, no‑server deploys.</p></div>
+    </div>
+    <div class="flow" style="margin-top:6px">
+      <span>BUSY ERP</span><b>→</b><span>Sync connector</span><b>→</b><span>Cloudflare D1</span><b>→</b>
+      <span>API + engine</span><b>→</b><span>PWA</span> &nbsp; <span>Haiku · rationale</span>
+    </div>
+
+    <h2><span class="n">9</span>Security, privacy &amp; compliance</h2>
+    <ul class="tight">
+      <li><b>Role‑based access</b> — admin / manager / salesperson gates on every screen and API.</li>
+      <li><b>Secure auth</b> — signed session tokens, hashed passwords, self‑service password change.</li>
+      <li><b>DPDP‑ready</b> — customer PII is captured only with consent and can be erased on request.</li>
+      <li><b>Full audit trail</b> — every state‑changing action is logged.</li>
+      <li><b>Least privilege</b> — the ERP connector uses a read‑only login and sends stock only (no customer data).</li>
+    </ul>
+
+    <h2><span class="n">10</span>Deployment &amp; scale</h2>
+    <p>Runs on Cloudflare's global edge with separate <b>development</b> and <b>production</b> environments
+      (<code>amaflip.in</code>). It's serverless and stateless at the edge, so adding stores or traffic needs no
+      new infrastructure — the same stack serves 7 stores or 70. Inventory stays fresh automatically; deploys are
+      test‑gated and reversible.</p>
+
+    <h2><span class="n">11</span>Roadmap</h2>
+    <ul class="tight">
+      <li><b>Customer education module</b> — contextual explainers + need calculators that pre‑fill the journey.</li>
+      <li><b>Interactive product page + in‑home visualisation</b> — full specs, running‑cost &amp; EMI, and "see it in your room" (photo → AR).</li>
+      <li><b>Deeper analytics</b> — sync‑health, conversion and demand dashboards feeding procurement.</li>
+    </ul>
+
+    <h2><span class="n">12</span>Why it matters for Amaflip</h2>
+    <div class="kpi">
+      <div><b>↑</b><span>Bigger, better‑fit baskets (attach + upsell)</span></div>
+      <div><b>⚡</b><span>Every rep sells like the best rep</span></div>
+      <div><b>👁️</b><span>Real‑time view of stock, demand &amp; staff</span></div>
+      <div><b>🤝</b><span>Honest, in‑stock recommendations build trust</span></div>
+    </div>
+    <p>LIQO converts each in‑store conversation into a better sale <i>and</i> a data point — compounding into
+      smarter buying, motivated staff, and a measurably stronger shop floor.</p>
+  </div>
+
+  <footer>
+    LIQO — Product Overview · Prepared for Amaflip · Confidential. Live/Roadmap status reflects the current dev
+    build. Figures illustrative of intended outcomes.
+  </footer>
+</div>
+</body>
+</html>
