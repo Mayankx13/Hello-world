@@ -49,6 +49,19 @@ describe("computeLeaderboard", () => {
   it("sorts by monthly points descending", () => {
     expect(rows[0].userId).toBe("u1");
   });
+
+  it("counts reco rate for the app's underscore outcome vocabulary", () => {
+    // The PWA emits `bought_recommended` (underscore); the leaderboard must
+    // normalise it the same way isBill/pointsForSession do, else recoRate is
+    // stuck at 0 on every live deployment.
+    const appSessions: SessionRecord[] = [
+      { userId: "u9", storeId: "s2", outcome: "bought_recommended", itemsPerBill: 1, total: 40000, ts: daysAgo(1) },
+      { userId: "u9", storeId: "s2", outcome: "bought_different", itemsPerBill: 1, total: 30000, ts: daysAgo(2) },
+    ];
+    const [u9] = computeLeaderboard(appSessions, { u9: { name: "C", storeId: "s2" } }, NOW);
+    expect(u9.bills).toBe(2);
+    expect(u9.recoRate).toBeCloseTo(0.5, 5);
+  });
 });
 
 describe("pointsToInr (50 pts = ₹1)", () => {

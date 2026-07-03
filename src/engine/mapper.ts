@@ -190,11 +190,13 @@ function round4(n: number): number {
 }
 
 function deriveCategory(row: RawInventoryRow): Category | null {
-  const raw = (row.category ?? "").toLowerCase();
+  const raw = (row.category ?? "").trim().toLowerCase();
   if (["ac", "tv", "fridge", "wm"].includes(raw)) return raw as Category;
   const label = (row.category_label ?? row.categoryLabel ?? row.name ?? "").toLowerCase();
-  if (label.includes("air condition") || label.includes("ac")) return "ac";
-  if (label.includes("tv") || label.includes("television")) return "tv";
+  // Match "ac"/"tv" only as whole words — a bare substring test misfires on
+  // ordinary product names ("black" contains "ac", "outlet" contains "tv"…).
+  if (/air.?condition/.test(label) || /\bac\b/.test(label)) return "ac";
+  if (/\btv\b/.test(label) || label.includes("television")) return "tv";
   if (label.includes("refriger") || label.includes("fridge")) return "fridge";
   if (label.includes("wash")) return "wm";
   return null;

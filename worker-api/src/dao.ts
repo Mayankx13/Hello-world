@@ -1109,10 +1109,15 @@ export async function addDemandRequest(db: D1Like, rec: DemandRequestInput): Pro
 // ===========================================================================
 // analytics  (read-only views)
 // ===========================================================================
-/** v_store_daily, optionally one store, last N days (by day string). */
+/**
+ * v_store_daily rows, optionally one store, on/after `sinceDay` (a 'YYYY-MM-DD'
+ * cutoff). The view is one row per store per day, so the window MUST be filtered
+ * by the day string — a bare LIMIT would cap total rows and, with several
+ * stores, silently collapse "last N days" down to a single day.
+ */
 export async function storeDaily(
   db: D1Like,
-  where: { storeId?: string; days?: number } = {},
+  where: { storeId?: string; sinceDay?: string } = {},
 ): Promise<StoreDailyRow[]> {
   const clauses: string[] = [];
   const binds: unknown[] = [];
@@ -1120,14 +1125,14 @@ export async function storeDaily(
     clauses.push("store_id = ?");
     binds.push(where.storeId);
   }
-  let sql =
+  if (where.sinceDay) {
+    clauses.push("day >= ?");
+    binds.push(where.sinceDay);
+  }
+  const sql =
     "SELECT * FROM v_store_daily" +
     (clauses.length ? " WHERE " + clauses.join(" AND ") : "") +
     " ORDER BY day DESC, store_id";
-  if (where.days != null) {
-    sql += " LIMIT ?";
-    binds.push(where.days);
-  }
   const { results } = await db.prepare(sql).bind(...binds).all<StoreDailyRow>();
   return results;
 }

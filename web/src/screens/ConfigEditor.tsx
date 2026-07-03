@@ -20,7 +20,7 @@ export default function ConfigEditor({ lang, token, onChanged }: { lang: Lang; t
   const [err, setErr] = useState<string | null>(null);
   const [edited, setEdited] = useState(false);
 
-  useEffect(() => { getConfig().then((c) => { setDraft(clone(c)); setEdited(hasConfigOverride()); }); }, []);
+  useEffect(() => { getConfig(token).then((c) => { setDraft(clone(c)); setEdited(hasConfigOverride()); }); }, [token]);
 
   if (!draft) return <div className="loading">…</div>;
   const patch = (fn: (d: EngineConfig) => void) => { setDraft((d) => { const n = clone(d!); fn(n); return n; }); setStatus("idle"); };
@@ -36,7 +36,7 @@ export default function ConfigEditor({ lang, token, onChanged }: { lang: Lang; t
   }
   async function reset() {
     setStatus("saving");
-    try { await resetConfigLive(token); const c = await getConfig(); setDraft(clone(c)); setEdited(false); setStatus("idle"); onChanged?.(); }
+    try { await resetConfigLive(token); const c = await getConfig(token); setDraft(clone(c)); setEdited(false); setStatus("idle"); onChanged?.(); }
     catch (e) { setErr((e as Error).message); setStatus("error"); }
   }
 

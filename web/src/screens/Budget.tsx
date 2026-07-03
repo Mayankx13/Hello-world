@@ -62,7 +62,7 @@ export default function Budget({
                 onClick={() => onPickBand(band)}
               >
                 <div className="b-tier">{t(UI[tierLabel], lang)}</div>
-                <div className="b-amt">{bandRangeLabel(bands[band])}</div>
+                <div className="b-amt">{bandRangeLabel(bands[band], lang)}</div>
               </button>
             );
           })}
