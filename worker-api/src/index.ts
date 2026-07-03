@@ -43,11 +43,22 @@ interface DemoUser {
 const USERS = usersFile as { demoPassword: string; users: DemoUser[] };
 const LEADERBOARD = leaderboardFile as { rows: LeaderboardRow[] };
 
-/** Salesperson roster (id -> name + home store) for leaderboard rendering. */
-function salesRoster(): Record<string, RosterEntry> {
+/** Salesperson roster (id -> name + home store) for leaderboard rendering.
+ *  Sourced from the live D1 `employees` table so real (imported) staff render
+ *  with their names, not raw ids. Falls back to the bundled demo users only
+ *  when the table is empty (offline / first bring-up). */
+async function salesRoster(db: D1Like): Promise<Record<string, RosterEntry>> {
   const roster: Record<string, RosterEntry> = {};
-  for (const u of USERS.users) {
-    if (u.role === "salesperson" && u.storeId) roster[u.id] = { name: u.name, storeId: u.storeId };
+  try {
+    const emps = await dao.listEmployees(db, { role: "salesperson" });
+    for (const e of emps) if (e.store_id) roster[e.employee_id] = { name: e.name, storeId: e.store_id };
+  } catch {
+    /* fall through to the bundled roster */
+  }
+  if (Object.keys(roster).length === 0) {
+    for (const u of USERS.users) {
+      if (u.role === "salesperson" && u.storeId) roster[u.id] = { name: u.name, storeId: u.storeId };
+    }
   }
   return roster;
 }
@@ -94,7 +105,7 @@ async function route(req: Request, env: Env, url: URL, pathname: string, method:
       if (pathname === "/stores" && method === "GET") return handleStores(env);
       if (pathname === "/catalog/health" && method === "GET") return handleCatalogHealth(env);
       if (pathname === "/session" && method === "POST") return handleSession(req, env);
-      if (pathname === "/config" && method === "GET") return handleGetConfig(env);
+      if (pathname === "/config" && method === "GET") return handleGetConfig(req, env);
       if (pathname === "/config" && method === "PUT") return handlePutConfig(req, env);
       if (pathname === "/questionnaire" && method === "GET") return handleGetQuestionnaire(env);
       if (pathname === "/questionnaire" && method === "PUT") return handlePutQuestionnaire(req, env);
@@ -380,7 +391,7 @@ async function handleLeaderboard(env: Env, url: URL): Promise<Response> {
     .catch(() => ({ results: [] as SessionRecord[] }));
   const hasRealBills = results.some((r) => isBill(r.outcome));
   let rows = hasRealBills
-    ? computeLeaderboard(results, salesRoster(), new Date().toISOString())
+    ? computeLeaderboard(results, await salesRoster(env.DB), new Date().toISOString())
     : LEADERBOARD.rows;
   if (storeId) rows = rows.filter((r) => r.storeId === storeId);
   return json(env, { rows });
@@ -511,12 +522,27 @@ async function handleSession(req: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------------------
 // GET/PUT /config  (admin token)
 // ---------------------------------------------------------------------------
-async function handleGetConfig(env: Env): Promise<Response> {
-  // Public read — the app needs price bands / attach live.
-  // TODO(prod): split a public app-config (bands, attach, emi) from the full
-  // commercial config (rankingBlend, brandPreference, marginModel).
+async function handleGetConfig(req: Request, env: Env): Promise<Response> {
   const cfg = await loadConfig(env.DB);
-  return json(env, cfg);
+  // Signed-in staff (e.g. the admin Config Editor) get the FULL doc so they can
+  // read + round-trip every parameter. The unauthenticated customer-facing flow
+  // only needs price bands / attach / emi, so commercial params (rankingBlend,
+  // brandPreference, brandExclusions, marginModel, fit, transform, ageingModel)
+  // are NOT exposed publicly.
+  if (await checkRole(req, env, STAFF_ROLES)) return json(env, cfg);
+  return json(env, publicConfig(cfg));
+}
+
+/** The safe-to-expose subset of the engine config for the public app flow. */
+function publicConfig(cfg: EngineConfig): Partial<EngineConfig> {
+  return {
+    version: cfg.version,
+    updatedAt: cfg.updatedAt,
+    priceBands: cfg.priceBands,
+    attach: cfg.attach,
+    emi: cfg.emi,
+    stretchThreshold: cfg.stretchThreshold,
+  };
 }
 
 async function handlePutConfig(req: Request, env: Env): Promise<Response> {
@@ -894,15 +920,22 @@ async function handleDecideLeave(req: Request, env: Env, idStr: string): Promise
 }
 
 // --- milestones + incentives ---
+// Readable by any signed-in staff member: milestones are the shared targets and
+// every salesperson needs to see their own incentive ledger (the gamification
+// loop). Salespeople are scoped to their OWN rows; managers/admins may filter.
 async function handleListMilestones(req: Request, env: Env): Promise<Response> {
-  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  if (!(await checkRole(req, env, STAFF_ROLES))) return unauthorized(env);
   return json(env, { milestones: await dao.listMilestones(env.DB) });
 }
 
 async function handleListIncentives(req: Request, env: Env, url: URL): Promise<Response> {
-  if (!(await checkAdmin(req, env))) return unauthorized(env);
+  if (!(await checkRole(req, env, STAFF_ROLES))) return unauthorized(env);
+  const payload = await tokenPayload(req, env);
+  let employeeId = url.searchParams.get("employeeId") ?? undefined;
+  // A salesperson may only ever read their own ledger, whatever they ask for.
+  if (payload?.role === "salesperson") employeeId = payload.sub ?? "__none__";
   const incentives = await dao.listIncentives(env.DB, {
-    employeeId: url.searchParams.get("employeeId") ?? undefined,
+    employeeId,
     period: url.searchParams.get("period") ?? undefined,
   });
   return json(env, { incentives });
@@ -957,6 +990,7 @@ async function handleListDemand(req: Request, env: Env, url: URL): Promise<Respo
 }
 
 async function handleAddDemand(req: Request, env: Env): Promise<Response> {
+  if (!(await checkRole(req, env, STAFF_ROLES))) return unauthorized(env);
   const b = await readBody(req);
   const id = await dao.addDemandRequest(env.DB, {
     storeId: str(b.store_id ?? b.storeId),
@@ -1016,9 +1050,13 @@ async function handleEngineTest(req: Request, env: Env): Promise<Response> {
 // --- analytics (views) ---
 async function handleAnalyticsStoreDaily(req: Request, env: Env, url: URL): Promise<Response> {
   if (!(await checkRole(req, env, MANAGER))) return unauthorized(env);
+  // Interpret ?days=N as a real date window (last N calendar days), not a row
+  // cap — v_store_daily is one row per store per day.
+  const days = num(url.searchParams.get("days")) ?? 30;
+  const sinceDay = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
   const rows = await dao.storeDaily(env.DB, {
     storeId: url.searchParams.get("storeId") ?? undefined,
-    days: num(url.searchParams.get("days")) ?? undefined,
+    sinceDay,
   });
   return json(env, { rows });
 }
@@ -1075,6 +1113,16 @@ async function checkRole(req: Request, env: Env, roles: string[]): Promise<boole
   const payload = await verifyToken(env, token);
   const role = payload?.role;
   return !!role && (role === "admin" || roles.includes(role));
+}
+
+/** The verified caller identity, or null. The ADMIN_TOKEN secret maps to a
+ *  synthetic admin (no `sub`), matching how checkAdmin/checkRole treat it. */
+async function tokenPayload(req: Request, env: Env): Promise<{ role?: string; sub?: string } | null> {
+  const auth = req.headers.get("authorization") ?? "";
+  const token = auth.replace(/^Bearer\s+/i, "").trim() || req.headers.get("x-admin-token") || "";
+  if (!token) return null;
+  if (env.ADMIN_TOKEN && token === env.ADMIN_TOKEN) return { role: "admin" };
+  return verifyToken(env, token);
 }
 
 async function verifyToken(env: Env, token: string): Promise<{ role?: string; sub?: string } | null> {

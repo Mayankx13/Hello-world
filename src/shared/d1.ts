@@ -141,19 +141,25 @@ const PLACEHOLDERS = INVENTORY_COLUMNS.map(() => "?").join(", ");
 const UPSERT_SQL = `INSERT OR REPLACE INTO inventory (${INVENTORY_COLUMNS.join(", ")}) VALUES (${PLACEHOLDERS})`;
 
 /**
- * Atomically replace the inventory snapshot: clear, then batch-insert.
- * Done in chunks to stay within D1 statement limits.
+ * Atomically replace the inventory snapshot.
+ *
+ * The DELETE and every insert run inside ONE db.batch(), which D1 executes as a
+ * single transaction (all-or-nothing). If any statement fails the whole thing
+ * rolls back, so the catalog can never be left empty or half-populated — unlike
+ * a bare `DELETE` followed by separate insert batches.
+ *
+ * An empty feed is treated as "nothing to apply": we do NOT wipe the live
+ * snapshot, so a transient upstream failure that yields zero rows can't take the
+ * whole catalog offline.
  */
-export async function replaceInventory(db: D1Like, items: InventoryItem[], chunk = 50): Promise<number> {
-  await db.exec("DELETE FROM inventory");
-  let written = 0;
-  for (let i = 0; i < items.length; i += chunk) {
-    const slice = items.slice(i, i + chunk);
-    const stmts = slice.map((it) => db.prepare(UPSERT_SQL).bind(...itemToBindings(it)));
-    await db.batch(stmts);
-    written += slice.length;
-  }
-  return written;
+export async function replaceInventory(db: D1Like, items: InventoryItem[]): Promise<number> {
+  if (items.length === 0) return 0;
+  const stmts: D1PreparedLike[] = [
+    db.prepare("DELETE FROM inventory"),
+    ...items.map((it) => db.prepare(UPSERT_SQL).bind(...itemToBindings(it))),
+  ];
+  await db.batch(stmts);
+  return items.length;
 }
 
 export async function loadInventory(db: D1Like, where?: { storeId?: string; category?: string }): Promise<InventoryItem[]> {

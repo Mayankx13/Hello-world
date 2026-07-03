@@ -128,7 +128,9 @@ export function computeLeaderboard(
     if (ageDays <= 7) a.week += pts;
     a.bills += 1;
     a.ipbSum += s.itemsPerBill ?? 1;
-    if (s.outcome === "bought-recommended") a.reco += 1;
+    // Normalise so the app's `bought_recommended` (underscore) and the
+    // engine/tests' `bought-recommended` (hyphen) both count toward reco rate.
+    if (normOutcome(s.outcome) === "bought-recommended") a.reco += 1;
     a.days.add(dayKey(new Date(ts).toISOString()));
   }
 

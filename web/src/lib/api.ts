@@ -97,10 +97,16 @@ function readOverride<T>(key: string): T | null {
   }
 }
 
-export async function getConfig(): Promise<EngineConfig> {
+/**
+ * Load the engine config. The customer-facing flow calls this with no token and
+ * receives the public subset (price bands / attach / emi). Admin tools pass the
+ * bearer token to receive the FULL editable config (commercial params included).
+ */
+export async function getConfig(token?: string | null): Promise<EngineConfig> {
   const ov = readOverride<EngineConfig>(CFG_OVERRIDE);
   if (ov) return ov;
-  return getJSON<EngineConfig>(IS_REMOTE ? `${API_BASE}/config` : `${BASE}config.json`);
+  if (IS_REMOTE) return getJSONAuth<EngineConfig>(`${API_BASE}/config`, token);
+  return getJSON<EngineConfig>(`${BASE}config.json`);
 }
 
 export async function getQuestionnaire(): Promise<Questionnaire> {
@@ -319,7 +325,8 @@ export async function apiLogin(email: string, password: string): Promise<{ token
   }
   const { demoPassword, users } = await getDemoUsers();
   const u = users.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
-  if (!u || (password && password !== demoPassword)) throw new Error("Invalid email or password");
+  // Require the demo password outright — an empty password must never sign in.
+  if (!u || password !== demoPassword) throw new Error("Invalid email or password");
   const user: AuthUser = { id: u.id, email: u.email, name: u.name, role: u.role, storeId: u.storeId, title: u.title };
   return { token: `demo:${u.id}`, user };
 }
