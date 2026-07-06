@@ -4,12 +4,15 @@
   "private": true,
   "description": "LIQO Instagram DM concierge for Amaflip India Pvt. Ltd. — D1 data layer, Hono Worker API, command.amaflip.in dashboard, BUSY attribution importer. The DM loop itself runs in n8n.",
   "workspaces": [
-    "worker"
+    "worker",
+    "dashboard"
   ],
   "scripts": {
     "dev:worker": "npm --workspace worker run dev",
+    "dev:dashboard": "npm --workspace dashboard run dev",
+    "build:dashboard": "npm --workspace dashboard run build",
     "deploy:worker": "npm --workspace worker run deploy",
-    "typecheck": "npm --workspace worker run typecheck",
+    "typecheck": "npm --workspace worker run typecheck && npm --workspace dashboard run typecheck",
     "db:create": "wrangler d1 create liqo_concierge",
     "db:apply": "wrangler d1 execute liqo_concierge --local --config worker/wrangler.toml --file schema/schema.sql && wrangler d1 execute liqo_concierge --local --config worker/wrangler.toml --file schema/seed.sql",
     "db:apply:remote": "wrangler d1 execute liqo_concierge --remote --yes --config worker/wrangler.toml --file schema/schema.sql && wrangler d1 execute liqo_concierge --remote --yes --config worker/wrangler.toml --file schema/seed.sql",
