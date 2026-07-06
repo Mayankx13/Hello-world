@@ -1,0 +1,20 @@
+# liqo-ig-concierge — Worker config.
+# Phase 1: only the D1 binding is used (npm run db:apply / db:migrate).
+# Phase 2 adds the Hono app at src/index.ts and the route for the public
+# webhook endpoint. Secrets (META_VERIFY_TOKEN, META_APP_SECRET,
+# N8N_WEBHOOK_URL, DASH_API_KEY) are set with `wrangler secret put` — never here.
+
+name = "liqo-concierge"
+main = "src/index.ts"                 # created in Phase 2
+compatibility_date = "2026-06-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "liqo_concierge"
+# Create the database once with:  npm run db:create
+# then paste the printed id here. Local dev works with the placeholder.
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "../schema/migrations"
+
+[vars]
+USD_INR = "87"                        # cost conversion default; override per env
