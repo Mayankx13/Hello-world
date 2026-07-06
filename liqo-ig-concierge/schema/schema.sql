@@ -162,3 +162,17 @@ CREATE TABLE IF NOT EXISTS processed_messages (
 ) WITHOUT ROWID;
 
 CREATE INDEX IF NOT EXISTS idx_processed_created ON processed_messages (created_at);
+
+
+-- ----------------------------------------------------------------------------
+-- 8 · qa_scores — manual QA sampling score, entered from the dashboard's
+--     economics & quality panel via POST /api/quality. One row per day.
+--     (Added in migration 0002.)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS qa_scores (
+  id         INTEGER PRIMARY KEY,
+  day        TEXT UNIQUE,                   -- 'YYYY-MM-DD'
+  score      REAL,                          -- 0..100
+  note       TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);

@@ -1,0 +1,19 @@
+# Local development secrets for `wrangler dev`.
+# Copy to worker/.dev.vars (gitignored) and fill in real values.
+# In production, set each one with:  npx wrangler secret put <NAME>
+
+# You invent this string; paste the same value in Meta App Dashboard →
+# Webhooks → Verify token.
+META_VERIFY_TOKEN=choose-a-long-random-string
+
+# Meta App Dashboard → Settings → Basic → App secret.
+META_APP_SECRET=your-meta-app-secret
+
+# The n8n webhook the Worker forwards verified DM payloads to.
+N8N_WEBHOOK_URL=https://your-n8n-host/webhook/liqo-dm
+
+# You invent this too; the dashboard sends it as X-Api-Key on every /api/* call.
+DASH_API_KEY=choose-a-long-random-api-key
+
+# Optional override of the wrangler.toml var.
+# USD_INR=87
