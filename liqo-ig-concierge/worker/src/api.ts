@@ -12,6 +12,7 @@
 
 import { Hono } from 'hono'
 import { type Env, LEAD_STATUSES, MATCH_METHODS, type LeadStatus } from './types'
+import { SQL } from './sql'
 
 export const api = new Hono<{ Bindings: Env }>()
 
@@ -39,92 +40,14 @@ api.get('/kpis', async (c) => {
   const db = c.env.DB
 
   const [sessions, fast, leads, leadsByCat, visits, visitsByCity, attrib, missed] = await db.batch([
-    // conversation-level coverage flags
-    db
-      .prepare(
-        `SELECT count(*) AS sessions,
-                coalesce(sum(answered), 0) AS answered,
-                coalesce(sum(handoff), 0) AS handoff,
-                coalesce(sum(CASE WHEN answered = 1 AND handoff = 0 THEN 1 ELSE 0 END), 0) AS auto_resolved
-         FROM (
-           SELECT u.ig_user_id,
-                  EXISTS (SELECT 1 FROM conversations o
-                          WHERE o.ig_user_id = u.ig_user_id AND o.direction = 'out'
-                            AND o.created_at >= datetime('now', ?1)) AS answered,
-                  EXISTS (SELECT 1 FROM conversations h
-                          WHERE h.ig_user_id = u.ig_user_id AND h.handoff = 1
-                            AND h.created_at >= datetime('now', ?1)) AS handoff
-           FROM (SELECT DISTINCT ig_user_id FROM conversations
-                 WHERE direction = 'in' AND ig_user_id IS NOT NULL
-                   AND created_at >= datetime('now', ?1)) u
-         )`,
-      )
-      .bind(mod),
-    // inbound volume + replies within 2 minutes
-    db
-      .prepare(
-        `SELECT count(*) AS dms_in,
-                coalesce(sum(EXISTS (
-                  SELECT 1 FROM conversations o
-                  WHERE o.ig_user_id = i.ig_user_id AND o.direction = 'out'
-                    AND o.created_at > i.created_at
-                    AND o.created_at <= datetime(i.created_at, '+2 minutes')
-                )), 0) AS fast
-         FROM conversations i
-         WHERE i.direction = 'in' AND i.created_at >= datetime('now', ?1)`,
-      )
-      .bind(mod),
-    db.prepare(`SELECT count(*) AS n FROM leads WHERE created_at >= datetime('now', ?1)`).bind(mod),
-    db
-      .prepare(
-        `SELECT coalesce(product_category, 'other') AS category, count(*) AS n
-         FROM leads WHERE created_at >= datetime('now', ?1)
-         GROUP BY 1 ORDER BY n DESC`,
-      )
-      .bind(mod),
-    db
-      .prepare(
-        `SELECT count(*) AS n FROM leads
-         WHERE status IN ('visit_committed','visited','converted')
-           AND created_at >= datetime('now', ?1)`,
-      )
-      .bind(mod),
-    db
-      .prepare(
-        `SELECT coalesce(city, 'unknown') AS city, count(*) AS n
-         FROM leads
-         WHERE status IN ('visit_committed','visited','converted')
-           AND created_at >= datetime('now', ?1)
-         GROUP BY 1 ORDER BY n DESC`,
-      )
-      .bind(mod),
-    db
-      .prepare(
-        `SELECT count(*) AS bills,
-                coalesce(sum(bill_amount), 0) AS revenue_inr,
-                avg(items_count) AS avg_items_per_bill
-         FROM attribution WHERE bill_date >= date('now', ?1)`,
-      )
-      .bind(mod),
-    // users whose LAST inbound DM aged past the 24h reply window with no reply
-    db
-      .prepare(
-        `SELECT count(*) AS n FROM (
-           SELECT ig_user_id, max(created_at) AS last_in
-           FROM conversations
-           WHERE direction = 'in' AND ig_user_id IS NOT NULL
-             AND created_at >= datetime('now', ?1)
-           GROUP BY ig_user_id
-         ) li
-         WHERE datetime(li.last_in, '+24 hours') < datetime('now')
-           AND NOT EXISTS (
-             SELECT 1 FROM conversations o
-             WHERE o.ig_user_id = li.ig_user_id AND o.direction = 'out'
-               AND o.created_at > li.last_in
-               AND o.created_at <= datetime(li.last_in, '+24 hours')
-           )`,
-      )
-      .bind(mod),
+    db.prepare(SQL.kpiSessions).bind(mod),
+    db.prepare(SQL.kpiFastReplies).bind(mod),
+    db.prepare(SQL.kpiLeadsCount).bind(mod),
+    db.prepare(SQL.kpiLeadsByCategory).bind(mod),
+    db.prepare(SQL.kpiVisits).bind(mod),
+    db.prepare(SQL.kpiVisitsByCity).bind(mod),
+    db.prepare(SQL.kpiAttribution).bind(mod),
+    db.prepare(SQL.kpiMissed24h).bind(mod),
   ])
 
   const s = sessions.results[0] as { sessions: number; answered: number; handoff: number; auto_resolved: number }
@@ -166,31 +89,11 @@ api.get('/funnel', async (c) => {
   const db = c.env.DB
 
   const [dmUsers, leads, committed, visited, converted] = await db.batch([
-    db
-      .prepare(
-        `SELECT count(DISTINCT ig_user_id) AS n FROM conversations
-         WHERE direction = 'in' AND ig_user_id IS NOT NULL AND created_at >= datetime('now', ?1)`,
-      )
-      .bind(mod),
-    db.prepare(`SELECT count(*) AS n FROM leads WHERE created_at >= datetime('now', ?1)`).bind(mod),
-    db
-      .prepare(
-        `SELECT count(*) AS n FROM leads
-         WHERE status IN ('visit_committed','visited','converted') AND created_at >= datetime('now', ?1)`,
-      )
-      .bind(mod),
-    db
-      .prepare(
-        `SELECT count(*) AS n FROM leads
-         WHERE status IN ('visited','converted') AND created_at >= datetime('now', ?1)`,
-      )
-      .bind(mod),
-    db
-      .prepare(
-        `SELECT count(*) AS n FROM leads
-         WHERE status = 'converted' AND created_at >= datetime('now', ?1)`,
-      )
-      .bind(mod),
+    db.prepare(SQL.funnelDmUsers).bind(mod),
+    db.prepare(SQL.kpiLeadsCount).bind(mod),
+    db.prepare(SQL.funnelCommitted).bind(mod),
+    db.prepare(SQL.funnelVisited).bind(mod),
+    db.prepare(SQL.funnelConverted).bind(mod),
   ])
 
   const n = (r: D1Result) => (r.results[0] as { n: number }).n
@@ -212,15 +115,7 @@ api.get('/funnel', async (c) => {
 api.get('/timeseries', async (c) => {
   const { days, mod } = windowOf(c.req.query('days'), 14)
 
-  const rows = await c.env.DB.prepare(
-    `SELECT date(created_at) AS day,
-            sum(CASE WHEN direction = 'in' THEN 1 ELSE 0 END) AS dms_in,
-            sum(CASE WHEN direction = 'out' THEN 1 ELSE 0 END) AS dms_out,
-            sum(CASE WHEN handoff = 1 THEN 1 ELSE 0 END) AS handoffs
-     FROM conversations
-     WHERE created_at >= datetime('now', ?1)
-     GROUP BY day ORDER BY day`,
-  )
+  const rows = await c.env.DB.prepare(SQL.timeseries)
     .bind(mod)
     .all<{ day: string; dms_in: number; dms_out: number; handoffs: number }>()
 
@@ -241,13 +136,7 @@ api.get('/timeseries', async (c) => {
 api.get('/intents', async (c) => {
   const { days, mod } = windowOf(c.req.query('days'))
 
-  const rows = await c.env.DB.prepare(
-    `SELECT intent, count(*) AS n
-     FROM conversations
-     WHERE direction = 'in' AND intent IS NOT NULL AND intent != ''
-       AND created_at >= datetime('now', ?1)
-     GROUP BY intent ORDER BY n DESC LIMIT 15`,
-  )
+  const rows = await c.env.DB.prepare(SQL.intents)
     .bind(mod)
     .all<{ intent: string; n: number }>()
 
@@ -309,25 +198,10 @@ api.get('/costs', async (c) => {
   const db = c.env.DB
 
   const [tokens, daily, leads, bills] = await db.batch([
-    db
-      .prepare(
-        `SELECT coalesce(sum(input_tokens), 0) AS tin,
-                coalesce(sum(output_tokens), 0) AS tout,
-                count(DISTINCT CASE WHEN direction = 'in' THEN ig_user_id END) AS conversations
-         FROM conversations WHERE created_at >= datetime('now', ?1)`,
-      )
-      .bind(mod),
-    db
-      .prepare(
-        `SELECT date(created_at) AS day,
-                coalesce(sum(input_tokens), 0) AS tin,
-                coalesce(sum(output_tokens), 0) AS tout
-         FROM conversations WHERE created_at >= datetime('now', ?1)
-         GROUP BY day ORDER BY day`,
-      )
-      .bind(mod),
-    db.prepare(`SELECT count(*) AS n FROM leads WHERE created_at >= datetime('now', ?1)`).bind(mod),
-    db.prepare(`SELECT count(*) AS n FROM attribution WHERE bill_date >= date('now', ?1)`).bind(mod),
+    db.prepare(SQL.costTokens).bind(mod),
+    db.prepare(SQL.costDaily).bind(mod),
+    db.prepare(SQL.kpiLeadsCount).bind(mod),
+    db.prepare(SQL.costBills).bind(mod),
   ])
 
   const t = tokens.results[0] as { tin: number; tout: number; conversations: number }

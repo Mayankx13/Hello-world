@@ -5,8 +5,20 @@
 # N8N_WEBHOOK_URL, DASH_API_KEY) are set with `wrangler secret put` — never here.
 
 name = "liqo-concierge"
-main = "src/index.ts"                 # created in Phase 2
+main = "src/index.ts"
 compatibility_date = "2026-06-01"
+
+# workers.dev stays on: Meta's webhook and the BUSY importer call the Worker
+# at https://liqo-concierge.<account>.workers.dev (NOT behind Cloudflare
+# Access — the webhook is protected by the Meta signature, /api/* by the key).
+workers_dev = true
+
+# Same-origin /api for the dashboard. Uncomment after command.amaflip.in is
+# live on the zone (Workers routes take precedence over Pages on matching
+# paths). Keep the Access policy on command.amaflip.in covering /api/* too.
+# routes = [
+#   { pattern = "command.amaflip.in/api/*", zone_name = "amaflip.in" }
+# ]
 
 [[d1_databases]]
 binding = "DB"

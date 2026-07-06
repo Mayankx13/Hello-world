@@ -17,7 +17,11 @@
     "db:apply": "wrangler d1 execute liqo_concierge --local --config worker/wrangler.toml --file schema/schema.sql && wrangler d1 execute liqo_concierge --local --config worker/wrangler.toml --file schema/seed.sql",
     "db:apply:remote": "wrangler d1 execute liqo_concierge --remote --yes --config worker/wrangler.toml --file schema/schema.sql && wrangler d1 execute liqo_concierge --remote --yes --config worker/wrangler.toml --file schema/seed.sql",
     "db:migrate": "wrangler d1 migrations apply liqo_concierge --local --config worker/wrangler.toml",
-    "db:migrate:remote": "wrangler d1 migrations apply liqo_concierge --remote --config worker/wrangler.toml"
+    "db:migrate:remote": "wrangler d1 migrations apply liqo_concierge --remote --config worker/wrangler.toml",
+    "db:demo": "wrangler d1 execute liqo_concierge --local --config worker/wrangler.toml --file schema/seed_demo.sql",
+    "deploy:dashboard": "npm --workspace dashboard run build && wrangler pages deploy dashboard/dist --project-name=liqo-command",
+    "deploy": "npm run deploy:worker && npm run deploy:dashboard",
+    "test": "npm --workspace worker run test"
   },
   "devDependencies": {
     "wrangler": "^4.20.0"
