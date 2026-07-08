@@ -13,11 +13,27 @@ compatibility_date = "2026-06-01"
 # Access — the webhook is protected by the Meta signature, /api/* by the key).
 workers_dev = true
 
-# Same-origin /api for the dashboard. Uncomment after command.amaflip.in is
-# live on the zone (Workers routes take precedence over Pages on matching
-# paths). Keep the Access policy on command.amaflip.in covering /api/* too.
+# ── Amaflip-branded custom domain ───────────────────────────────────────────
+# This account's workers.dev subdomain is `sbinfraprojects` (a DIFFERENT
+# client), so the raw origin is liqo-concierge.sbinfraprojects.workers.dev.
+# Put an amaflip.in host in front so nothing public carries SB Infra's name —
+# that branded host is what goes to Meta and the dashboard, not the raw origin.
+#
+# PREREQUISITE: amaflip.in must be an ACTIVE ZONE in this Cloudflare account
+# first (it is not yet — only sbinfraprojects.net is). Add it via the registrar
+# nameserver change (see README), THEN uncomment ONE block below and
+# `npm run deploy:worker` — wrangler provisions the custom domain + DNS record.
+#
+# A) dedicated webhook/API host (recommended — decoupled from the dashboard):
 # routes = [
-#   { pattern = "command.amaflip.in/api/*", zone_name = "amaflip.in" }
+#   { pattern = "hook.amaflip.in", custom_domain = true }
+# ]
+#
+# B) or fold onto the dashboard domain (Workers routes beat Pages on match;
+#    keep the Cloudflare Access policy on command.amaflip.in covering /api/*):
+# routes = [
+#   { pattern = "command.amaflip.in/webhook", zone_name = "amaflip.in" },
+#   { pattern = "command.amaflip.in/api/*",  zone_name = "amaflip.in" },
 # ]
 
 [[d1_databases]]
