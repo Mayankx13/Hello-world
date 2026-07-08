@@ -6,8 +6,13 @@
 # Webhooks → Verify token.
 META_VERIFY_TOKEN=choose-a-long-random-string
 
-# Meta App Dashboard → Settings → Basic → App secret.
+# Meta App Dashboard → Settings → Basic → App secret (Messenger app).
 META_APP_SECRET=your-meta-app-secret
+
+# Instagram app secret. The webhook accepts a signature from EITHER this or
+# META_APP_SECRET. Optional — leave unset if a single app secret signs all
+# events.
+IG_APP_SECRET=your-instagram-app-secret
 
 # The n8n webhook the Worker forwards verified DM payloads to.
 N8N_WEBHOOK_URL=https://your-n8n-host/webhook/liqo-dm

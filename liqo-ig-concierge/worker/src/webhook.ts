@@ -26,7 +26,9 @@ webhook.get('/', (c) => {
 webhook.post('/', async (c) => {
   const raw = await c.req.text()
   const signature = c.req.header('x-hub-signature-256')
-  const valid = await verifyMetaSignature(c.env.META_APP_SECRET, raw, signature)
+  // Accept a signature from either the Messenger or the Instagram app secret;
+  // the two Meta apps can sign X-Hub-Signature-256 with different secrets.
+  const valid = await verifyMetaSignature([c.env.META_APP_SECRET, c.env.IG_APP_SECRET], raw, signature)
   if (!valid) return c.json({ error: 'invalid signature' }, 401)
 
   // Forward the payload unchanged (headers included so n8n can re-verify),
@@ -48,26 +50,35 @@ webhook.post('/', async (c) => {
   return c.json({ ok: true })
 })
 
-// HMAC-SHA256(raw body, META_APP_SECRET) must equal the sha256=<hex> header.
-// crypto.subtle.verify does the comparison in constant time.
+// HMAC-SHA256(raw body, app secret) must equal the sha256=<hex> header.
+// Accepts one secret or a list, and passes if ANY candidate validates the
+// signature — the Instagram and Messenger apps may sign with different app
+// secrets. Empty/undefined candidates are skipped; with none left it fails
+// closed. crypto.subtle.verify does each comparison in constant time.
 export async function verifyMetaSignature(
-  secret: string | undefined,
+  secrets: string | Array<string | undefined> | undefined,
   rawBody: string,
   header: string | undefined,
 ): Promise<boolean> {
-  if (!secret || !header?.startsWith('sha256=')) return false
+  if (!header?.startsWith('sha256=')) return false
   const hex = header.slice('sha256='.length)
   if (!/^[0-9a-fA-F]{64}$/.test(hex)) return false
+  const candidates = (Array.isArray(secrets) ? secrets : [secrets]).filter((s): s is string => !!s)
+  if (candidates.length === 0) return false
+
   const sig = new Uint8Array(32)
   for (let i = 0; i < 32; i++) sig[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+  const body = new TextEncoder().encode(rawBody)
 
-  const enc = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify'],
-  )
-  return crypto.subtle.verify('HMAC', key, sig, enc.encode(rawBody))
+  for (const secret of candidates) {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    )
+    if (await crypto.subtle.verify('HMAC', key, sig, body)) return true
+  }
+  return false
 }

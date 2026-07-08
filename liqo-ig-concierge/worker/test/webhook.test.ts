@@ -48,3 +48,34 @@ describe('verifyMetaSignature', () => {
     expect(await verifyMetaSignature(SECRET, BODY, sig.toUpperCase().replace('SHA256=', 'sha256='))).toBe(true)
   })
 })
+
+// The webhook passes a [META_APP_SECRET, IG_APP_SECRET] candidate list so a
+// DM signed by either Meta app is accepted.
+describe('verifyMetaSignature — either app secret', () => {
+  const META = 'meta-app-secret'
+  const IG = 'ig-app-secret'
+  const BOTH = [META, IG]
+
+  it('accepts a signature made with META_APP_SECRET', async () => {
+    expect(await verifyMetaSignature(BOTH, BODY, await sign(META, BODY))).toBe(true)
+  })
+
+  it('accepts a signature made with IG_APP_SECRET', async () => {
+    expect(await verifyMetaSignature(BOTH, BODY, await sign(IG, BODY))).toBe(true)
+  })
+
+  it('rejects a signature made with neither secret', async () => {
+    expect(await verifyMetaSignature(BOTH, BODY, await sign('some-other-secret', BODY))).toBe(false)
+  })
+
+  it('rejects a tampered body regardless of which secret signed it', async () => {
+    const tampered = BODY.replace('123', '999')
+    expect(await verifyMetaSignature(BOTH, tampered, await sign(META, BODY))).toBe(false)
+    expect(await verifyMetaSignature(BOTH, tampered, await sign(IG, BODY))).toBe(false)
+  })
+
+  it('skips undefined/empty candidates but still matches a real one', async () => {
+    expect(await verifyMetaSignature([undefined, IG, ''], BODY, await sign(IG, BODY))).toBe(true)
+    expect(await verifyMetaSignature([undefined, ''], BODY, await sign(IG, BODY))).toBe(false)
+  })
+})

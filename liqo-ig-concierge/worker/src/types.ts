@@ -3,7 +3,8 @@ export type Env = {
 
   // Secrets — set with `wrangler secret put <NAME>` (local dev: worker/.dev.vars)
   META_VERIFY_TOKEN: string // Meta webhook GET verification token (you choose it)
-  META_APP_SECRET: string   // Meta app secret, signs X-Hub-Signature-256
+  META_APP_SECRET: string   // Meta (Messenger) app secret, signs X-Hub-Signature-256
+  IG_APP_SECRET?: string    // Instagram app secret; webhook accepts a signature from this OR META_APP_SECRET
   N8N_WEBHOOK_URL: string   // where verified webhook payloads are forwarded
   DASH_API_KEY: string      // required in X-Api-Key on every /api/* request
 
