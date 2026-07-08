@@ -23,9 +23,7 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "liqo_concierge"
-# Create the database once with:  npm run db:create
-# then paste the printed id here. Local dev works with the placeholder.
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "4dcf2c0f-722b-4ef1-97db-a12514dfa86c"
 migrations_dir = "../schema/migrations"
 
 [vars]
