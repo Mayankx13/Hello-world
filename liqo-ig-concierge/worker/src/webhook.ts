@@ -32,20 +32,27 @@ webhook.post('/', async (c) => {
   if (!valid) return c.json({ error: 'invalid signature' }, 401)
 
   // Forward the payload unchanged (headers included so n8n can re-verify),
-  // in the background — Meta gets its 200 without waiting on n8n.
-  const forward = fetch(c.env.N8N_WEBHOOK_URL, {
-    method: 'POST',
-    headers: {
-      'content-type': c.req.header('content-type') ?? 'application/json',
-      'x-hub-signature-256': signature!,
-    },
-    body: raw,
-  })
-    .then((r) => {
-      if (!r.ok) console.log(`n8n forward failed: HTTP ${r.status}`)
+  // in the background — Meta gets its 200 without waiting on n8n. When
+  // N8N_WEBHOOK_URL is unset (e.g. an infrastructure deploy before the DM
+  // loop is wired), skip forwarding rather than fetch an undefined URL.
+  const target = c.env.N8N_WEBHOOK_URL
+  if (target) {
+    const forward = fetch(target, {
+      method: 'POST',
+      headers: {
+        'content-type': c.req.header('content-type') ?? 'application/json',
+        'x-hub-signature-256': signature!,
+      },
+      body: raw,
     })
-    .catch(() => console.log('n8n forward failed: network error'))
-  c.executionCtx.waitUntil(forward)
+      .then((r) => {
+        if (!r.ok) console.log(`n8n forward failed: HTTP ${r.status}`)
+      })
+      .catch(() => console.log('n8n forward failed: network error'))
+    c.executionCtx.waitUntil(forward)
+  } else {
+    console.log('n8n forwarding skipped: N8N_WEBHOOK_URL not set')
+  }
 
   return c.json({ ok: true })
 })
